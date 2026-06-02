@@ -6,7 +6,7 @@ import TopNavBar from "../../components/TopNavBar";
 import Footer from "../../components/Footer";
 import Image from "next/image";
 import Link from "next/link";
-import { getProduct, type Product } from "@/lib/firebase/products-service";
+import { getProduct, type Product, incrementProductViews } from "@/lib/firebase/products-service";
 
 export default function ProductDetailPage() {
   const params = useParams();
@@ -20,6 +20,11 @@ export default function ProductDetailPage() {
     if (!id) return;
     async function loadProduct() {
       try {
+        // Incrementar vistas
+        await incrementProductViews(id).catch(err => 
+          console.error("Error incrementing product views:", err)
+        );
+        
         const prod = await getProduct(id);
         if (prod) {
           setProduct(prod);

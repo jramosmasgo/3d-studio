@@ -1,12 +1,23 @@
 import type { Metadata } from "next";
-import { Space_Grotesk, Inter } from "next/font/google";
+import { Inter } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth/AuthContext";
 
-const spaceGrotesk = Space_Grotesk({
+const spaceGrotesk = localFont({
+  src: [
+    {
+      path: "../public/fonts/NexaBold/Nexa Light.otf",
+      weight: "300",
+      style: "normal",
+    },
+    {
+      path: "../public/fonts/NexaBold/Nexa Bold.otf",
+      weight: "700",
+      style: "normal",
+    },
+  ],
   variable: "--font-space-grotesk",
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
 });
 
 const inter = Inter({

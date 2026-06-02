@@ -9,6 +9,7 @@ import {
   orderBy,
   serverTimestamp,
   getDoc,
+  increment,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 
@@ -50,6 +51,9 @@ export interface Product {
   // Estado activo/inactivo
   isActive: boolean;
 
+  // Vistas (contador de clics/visitas)
+  views?: number;
+
   // Fechas opcionales
   createdAt?: string;
   updatedAt?: string;
@@ -73,9 +77,10 @@ export async function createProduct(
 ): Promise<Product> {
   const ref = await addDoc(collection(db, PRODUCTS_COL), {
     ...data,
+    views: 0,
     createdAt: serverTimestamp(),
   });
-  return { id: ref.id, ...data };
+  return { id: ref.id, ...data, views: 0 };
 }
 
 export async function updateProduct(
@@ -96,4 +101,10 @@ export async function getProduct(id: string): Promise<Product | null> {
   const snap = await getDoc(doc(db, PRODUCTS_COL, id));
   if (!snap.exists()) return null;
   return { id: snap.id, ...snap.data() } as Product;
+}
+
+export async function incrementProductViews(id: string): Promise<void> {
+  await updateDoc(doc(db, PRODUCTS_COL, id), {
+    views: increment(1),
+  });
 }

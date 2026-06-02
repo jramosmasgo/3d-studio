@@ -43,6 +43,9 @@ export interface Product {
   // Estado activo/inactivo
   isActive: boolean;
 
+  // Vistas (contador de visitas)
+  views?: number;
+
   // Fechas opcionales
   createdAt?: string;
   updatedAt?: string;
@@ -768,12 +771,18 @@ export default function AdminCatalogoPage() {
                     </div>
                   )}
 
-                  {/* Registrado por */}
-                  <div className="flex items-center gap-1 pt-2 border-t border-outline-variant/5 text-[9px] text-on-surface/35">
-                    <span className="material-symbols-outlined text-[11px]">person</span>
-                    <span className="truncate">
-                      Reg. por: <span className="font-medium text-on-surface/55">{adminMap[producto.createdBy] || producto.createdBy || "Desconocido"}</span>
-                    </span>
+                  {/* Registrado por y Vistas */}
+                  <div className="flex items-center justify-between pt-2 border-t border-outline-variant/5 text-[9px] text-on-surface/35">
+                    <div className="flex items-center gap-1 truncate max-w-[70%]">
+                      <span className="material-symbols-outlined text-[11px]">person</span>
+                      <span className="truncate">
+                        Reg. por: <span className="font-medium text-on-surface/55">{adminMap[producto.createdBy] || producto.createdBy || "Desconocido"}</span>
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1 text-primary-container font-semibold whitespace-nowrap shrink-0">
+                      <span className="material-symbols-outlined text-[11px]">visibility</span>
+                      <span>{producto.views || 0} vistas</span>
+                    </div>
                   </div>
                 </div>
 
