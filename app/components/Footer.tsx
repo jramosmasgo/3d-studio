@@ -21,12 +21,11 @@ export default function Footer() {
       <div className="mb-12 md:mb-0 text-center md:text-left">
         <div className="flex items-center justify-center md:justify-start gap-3 mb-6">
           <Image
-            src="https://lh3.googleusercontent.com/aida-public/AB6AXuDnmAj6UyqkXve1ChU-XJHTC8zMNpU5QGCP_ePHdTrmjY2Z8PvJwQlt1Nk1OxCsX6t3xhymc0Y1JxBYAg2clR7rsmIzmWSnxHzN14sv1N7h2IaQPnWNPYbbIE5upA-GmFAo1Wf1QXnvkJV3wlbY6zsl-SdJ7KSjOkr1Dxrtwuon_z6EecNETgxXlK9zeY1gSAaQdwgGKwmDRqFYnhEC8s9ES3deMPKNP7mk9YV_PHMh72VpVIeuYRqXN1oyfI95HHDbt-Yzqfuzmooj"
+            src="/logo/logo-blanco.png"
             alt="3D Studio Logo"
             width={32}
             height={32}
             className="opacity-80"
-            unoptimized
           />
           <span
             className="font-black text-2xl text-[#e5e2e1]"

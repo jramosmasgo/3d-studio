@@ -1,13 +1,28 @@
-import Image from "next/image";
 import Link from "next/link";
+import { PageContent } from "@/lib/firebase/contenido-service";
 
-const stats = [
-  { value: "0.02mm", label: "Detalle" },
-  { value: "8K", label: "Resin Core" },
-  { value: "MUSEO", label: "Acabado" },
-];
+interface HeroSectionProps {
+  content?: PageContent | null;
+}
 
-export default function HeroSection() {
+export default function HeroSection({ content }: HeroSectionProps) {
+  const sections = content?.sections || {};
+
+  const heroStats = [
+    {
+      value: sections.heroStat1Value || "0.02mm",
+      label: sections.heroStat1Label || "Detalle",
+    },
+    {
+      value: sections.heroStat2Value || "8K",
+      label: sections.heroStat2Label || "Resin Core",
+    },
+    {
+      value: sections.heroStat3Value || "MUSEO",
+      label: sections.heroStat3Label || "Acabado",
+    },
+  ];
+
   return (
     <section className="relative min-h-[90vh] flex items-center pt-32 pb-32 overflow-hidden bg-[#0e0e0e]">
       {/* Background image with overlay */}
@@ -33,7 +48,7 @@ export default function HeroSection() {
               className="text-[10px] font-black tracking-widest uppercase text-[#ffb4ab]"
               style={{ fontFamily: "var(--font-inter)" }}
             >
-              Coleccionables Premium
+              {sections.heroBadge || "Coleccionables Premium"}
             </span>
           </div>
 
@@ -42,8 +57,8 @@ export default function HeroSection() {
             className="text-6xl md:text-8xl font-bold leading-[0.9] tracking-tighter text-[#e5e2e1] uppercase"
             style={{ fontFamily: "var(--font-space-grotesk)" }}
           >
-            Impresión 3D <br />
-            <span className="text-gradient-primary">y Modelado.</span>
+            {sections.heroTitle1 || "Impresión 3D"} <br />
+            <span className="text-primary-container">{sections.heroTitle2 || "y Modelado."}</span>
           </h1>
 
           {/* Subtext */}
@@ -51,26 +66,27 @@ export default function HeroSection() {
             className="text-lg md:text-xl text-[#e5e2e1]/60 max-w-2xl leading-relaxed"
             style={{ fontFamily: "var(--font-inter)" }}
           >
-            Studio 3D: Especialistas en impresión 3D, modelado digital y diseño personalizado. Creamos desde maquetas y prototipos hasta personajes y piezas mecánicas de alta calidad.
+            {sections.heroDescription ||
+              "Studio 3D: Especialistas en impresión 3D, modelado digital y diseño personalizado. Creamos desde maquetas y prototipos hasta personajes y piezas mecánicas de alta calidad."}
           </p>
 
           {/* CTAs */}
           <div className="flex flex-wrap gap-6 pt-6">
             <Link href="/catalogo">
               <button className="bg-primary-container text-white px-10 py-5 rounded-md font-bold text-lg hover:brightness-110 transition-all active:scale-95 shadow-lg shadow-primary-container/20">
-                Ver Tienda
+                Ver Catálogo
               </button>
             </Link>
-            <Link href="/catalogo">
+            <Link href="/servicios">
               <button className="border border-[#af8782]/20 text-[#e5e2e1] px-10 py-5 rounded-md font-medium hover:bg-[#2a2a2a] transition-all">
-                Ver Catálogo
+                Nuestros Servicios
               </button>
             </Link>
           </div>
 
           {/* Stats */}
           <div className="flex items-center gap-12 pt-12 opacity-40">
-            {stats.map((stat) => (
+            {heroStats.map((stat) => (
               <div key={stat.label} className="flex flex-col">
                 <span
                   className="text-3xl font-bold"
@@ -90,18 +106,24 @@ export default function HeroSection() {
         </div>
 
         {/* Right column — Feature card */}
-        <div className="lg:col-span-5 hidden lg:flex items-center justify-center">
-          <div className="relative w-full aspect-[4/5] bg-[#1c1b1b] rounded-xl overflow-hidden shadow-2xl group">
-            {/* Color overlay */}
-            <div className="absolute inset-0 bg-gradient-to-br from-[#ffb4ab]/10 to-transparent z-10" />
+        <Link
+          href={sections.heroCardLink || "/catalogo"}
+          className="lg:col-span-5 hidden lg:flex items-center justify-center cursor-pointer group"
+        >
+          <div
+            className="relative w-full aspect-[4/5] rounded-xl overflow-hidden shadow-2xl transition-all duration-300 hover:scale-[1.01]"
+            style={{
+              backgroundImage: `url('${sections.heroCardImage || "https://lh3.googleusercontent.com/aida-public/AB6AXuApkZSm91wWoQ6FevP9m2lcTeW3LW5NzuSUhv4WAO5hkZ4zqzqcsiFYi8IO3gpyOn8ZpTf3G_tEzlQKT3vvvVjG7TnYWMGKdxU6lTo9LlZtYEdGQyty-KZ5nrQ-Z58oVU0lvn17gmuDeak-RCDJoMjiVFxxrvepj-fgkQvT4wcEeo0qrtM_XkagjIWkk7hwRYhagk1wWFd1-lXtiTF4cdTtA-8cQcIHKqXlIfZIcEPmBZ3Lca6jyXx0jBcaTbyECnlobm7jmvGUcvWM"}')`,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              backgroundColor: "#1c1b1b",
+            }}
+          >
+            {/* Dark gradient overlay at bottom */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
 
-            <Image
-              src="https://lh3.googleusercontent.com/aida-public/AB6AXuApkZSm91wWoQ6FevP9m2lcTeW3LW5NzuSUhv4WAO5hkZ4zqzqcsiFYi8IO3gpyOn8ZpTf3G_tEzlQKT3vvvVjG7TnYWMGKdxU6lTo9LlZtYEdGQyty-KZ5nrQ-Z58oVU0lvn17gmuDeak-RCDJoMjiVFxxrvepj-fgkQvT4wcEeo0qrtM_XkagjIWkk7hwRYhagk1wWFd1-lXtiTF4cdTtA-8cQcIHKqXlIfZIcEPmBZ3Lca6jyXx0jBcaTbyECnlobm7jmvGUcvWM"
-              alt="High quality 3D printed resin figure of a mecha robot with sharp glowing red edges"
-              fill
-              className="object-cover mix-blend-overlay opacity-80 transition-transform duration-700 group-hover:scale-105"
-              unoptimized
-            />
+            {/* Subtle color tint overlay */}
+            <div className="absolute inset-0 bg-gradient-to-br from-[#ffb4ab]/5 to-transparent" />
 
             {/* Info overlay */}
             <div
@@ -116,17 +138,17 @@ export default function HeroSection() {
                 className="font-bold text-xl mb-1"
                 style={{ fontFamily: "var(--font-space-grotesk)" }}
               >
-                Mecha-X Prototype
+                {sections.heroCardTitle || "Mecha-X Prototype"}
               </h3>
               <p
                 className="text-xs text-[#e5e2e1]/50"
                 style={{ fontFamily: "var(--font-inter)" }}
               >
-                MATERIAL: TOUGH RESIN / DETALLE: 20 MICRAS
+                {sections.heroCardDesc || "MATERIAL: TOUGH RESIN / DETALLE: 20 MICRAS"}
               </p>
             </div>
           </div>
-        </div>
+        </Link>
       </div>
     </section>
   );

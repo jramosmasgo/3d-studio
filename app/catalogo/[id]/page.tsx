@@ -1,9 +1,65 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { useParams } from "next/navigation";
 import TopNavBar from "../../components/TopNavBar";
 import Footer from "../../components/Footer";
 import Image from "next/image";
 import Link from "next/link";
+import { getProduct, type Product } from "@/lib/firebase/products-service";
 
 export default function ProductDetailPage() {
+  const params = useParams();
+  const id = params?.id as string;
+
+  const [product, setProduct] = useState<Product | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  useEffect(() => {
+    if (!id) return;
+    async function loadProduct() {
+      try {
+        const prod = await getProduct(id);
+        if (prod) {
+          setProduct(prod);
+        }
+      } catch (err) {
+        console.error("Error loading product:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadProduct();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="bg-background min-h-screen text-on-surface flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <p className="text-on-surface/60 font-body text-sm">Cargando producto...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!product) {
+    return (
+      <div className="bg-background min-h-screen text-on-surface flex flex-col items-center justify-center space-y-6">
+        <h1 className="text-3xl font-headline font-bold">Producto no encontrado</h1>
+        <Link href="/catalogo" className="px-6 py-3 bg-primary-container text-white text-xs font-bold uppercase tracking-widest rounded-md">
+          Volver al Catálogo
+        </Link>
+      </div>
+    );
+  }
+
+  // Prepara las imágenes para el carrusel
+  const productImages = product.images && product.images.length > 0
+    ? product.images.map(img => ({ src: img.url, alt: img.alt_text || product.name }))
+    : [{ src: "https://lh3.googleusercontent.com/aida-public/AB6AXuDrB5nBeijCzZc4xE3zLNPKIJEyV8T8F--zUs46HMq7sSm7PP23ydFUoIWY3vHF4fw9FJGupOTf8_evww9w-gyJta5gKphvNH0Yw5h4X5eNN-Wp-ao1xiu71HR75whYQ1q0NyKvug078XUyqHh-HXjDcJa9VRT7X4v_iyP6-umz_CMM9GIThR0gJaVDmB72LF8XifNUNEyYuB7qRfwkqmpUYO2HFzYewHQPaDfxGIFbnMUjERLYmRlXkoNVsQrMTUlwCgDHmxTW93Uw", alt: product.name }];
+
   return (
     <>
       <TopNavBar />
@@ -11,34 +67,62 @@ export default function ProductDetailPage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 items-start">
           {/* Gallery Section */}
           <div className="lg:col-span-7 flex flex-col gap-6">
-            <div className="relative group overflow-hidden bg-surface-container-low aspect-[4/5] md:aspect-square flex items-center justify-center rounded-sm">
+            <div className="relative group overflow-hidden bg-surface-container-low aspect-[4/5] md:aspect-square flex items-center justify-center rounded-lg border border-outline-variant/10 shadow-md">
               <Image
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuDrB5nBeijCzZc4xE3zLNPKIJEyV8T8F--zUs46HMq7sSm7PP23ydFUoIWY3vHF4fw9FJGupOTf8_evww9w-gyJta5gKphvNH0Yw5h4X5eNN-Wp-ao1xiu71HR75whYQ1q0NyKvug078XUyqHh-HXjDcJa9VRT7X4v_iyP6-umz_CMM9GIThR0gJaVDmB72LF8XifNUNEyYuB7qRfwkqmpUYO2HFzYewHQPaDfxGIFbnMUjERLYmRlXkoNVsQrMTUlwCgDHmxTW93Uw"
-                alt="Ronin Cyber-Gen Vista Principal"
+                src={productImages[activeIndex]?.src || productImages[0].src}
+                alt={productImages[activeIndex]?.alt || productImages[0].alt}
                 fill
-                className="object-cover transition-transform duration-700 group-hover:scale-105"
+                className="object-cover transition-all duration-700 ease-out group-hover:scale-[1.03]"
                 unoptimized
+                priority
               />
+              
+              {/* Navigation overlays */}
+              {productImages.length > 1 && (
+                <>
+                  <button 
+                    onClick={() => setActiveIndex((prev) => (prev === 0 ? productImages.length - 1 : prev - 1))}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 p-3 bg-black/40 hover:bg-black/60 text-white rounded-full transition-all duration-300 opacity-0 group-hover:opacity-100 backdrop-blur-sm shadow-lg hover:scale-105"
+                    aria-label="Imagen anterior"
+                  >
+                    <svg className="w-5 h-5 fill-none stroke-current stroke-2" viewBox="0 0 24 24">
+                      <path d="M15 19l-7-7 7-7" />
+                    </svg>
+                  </button>
+                  <button 
+                    onClick={() => setActiveIndex((prev) => (prev === productImages.length - 1 ? 0 : prev + 1))}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 p-3 bg-black/40 hover:bg-black/60 text-white rounded-full transition-all duration-300 opacity-0 group-hover:opacity-100 backdrop-blur-sm shadow-lg hover:scale-105"
+                    aria-label="Siguiente imagen"
+                  >
+                    <svg className="w-5 h-5 fill-none stroke-current stroke-2" viewBox="0 0 24 24">
+                      <path d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                </>
+              )}
             </div>
-            <div className="grid grid-cols-2 gap-6">
-              <div className="bg-surface-container-low aspect-square overflow-hidden group relative rounded-sm">
-                <Image
-                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuB3_LHVs7lW5YtkB8KODtB_N56nIOUmTdkvmbRucmvwayNX1NNElvQi20gqxNGyeFDk0DdzkC4tjCtXYZk0DD1CGOT6GRabCkcqzakcQ0L-xIhbTQ7euSoqTRj5IVxctOwIZ_kAIYjRF4p5AQdQwdxaPZK-yL2VoWrL93JyoykL25D2WJGURnwKaQ2uV9X2Y5YojJCbM3avrYHQ_eDDnmUd77RDNh6t_EZFbj9AAapzvgZqrH88Lzt0S7giNDHBrewZTpwXEPLmdevq"
-                  alt="Ronin Cyber-Gen Detalle Macro"
-                  fill
-                  className="object-cover transition-transform duration-700 group-hover:scale-110"
-                  unoptimized
-                />
-              </div>
-              <div className="bg-surface-container-low aspect-square overflow-hidden group relative rounded-sm">
-                <Image
-                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuA4c6hZlKLZGW0SoE3bIZ9N7UWQNThgKYwAcQdcpzmBl4VDioMF3ZnZHUledpYmEWmnZC-Be-HXjgoU_hIRPH2l1jDRplEisTQgY0VSTmE9Cp-Bb7Czf0rRve1ASoZm6jHO_BV-fcOQB3opzUfXp78xZFy9OLJ9B_sUHVjb5oX75SDxomOzYyE3xhnbwX6Whj5RNZs5HH1o5yqINRpPlqhk9SVzok32P0_hy3TL3iDUSnr2dapqwrlQVtp1yecPGObJSIhgUZYfU-9E"
-                  alt="Ronin Cyber-Gen Perfil"
-                  fill
-                  className="object-cover transition-transform duration-700 group-hover:scale-110"
-                  unoptimized
-                />
-              </div>
+            
+            {/* Thumbnails Row */}
+            <div className="flex gap-4 overflow-x-auto py-2 scrollbar-none justify-start">
+              {productImages.map((image, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setActiveIndex(idx)}
+                  className={`relative aspect-square w-24 md:w-28 rounded-md overflow-hidden flex-shrink-0 transition-all duration-300 border-2 ${
+                    activeIndex === idx 
+                      ? "border-primary scale-[1.02] shadow-md shadow-primary/20 brightness-110" 
+                      : "border-outline-variant/30 opacity-70 hover:opacity-100 hover:border-outline-variant"
+                  }`}
+                >
+                  <Image
+                    src={image.src}
+                    alt={`Miniatura ${idx + 1}`}
+                    fill
+                    className="object-cover"
+                    unoptimized
+                  />
+                </button>
+              ))}
             </div>
           </div>
 
@@ -46,28 +130,23 @@ export default function ProductDetailPage() {
           <div className="lg:col-span-5 flex flex-col gap-10 lg:sticky lg:top-32">
             <div>
               <span className="text-primary font-headline tracking-widest text-[0.65rem] uppercase mb-2 block font-bold">
-                Serie: Cyber-Gen Legacy
+                Categoría: {product.categoryName || "Estatuas 3D"}
               </span>
               <h1 className="font-headline text-5xl md:text-7xl font-bold tracking-tighter text-on-surface leading-[0.9] mb-4">
-                Ronin Cyber-Gen
+                {product.name}
               </h1>
               <div className="flex items-baseline gap-4 mt-6">
                 <span className="text-3xl font-headline font-medium text-on-surface">
-                  S/. 124.00
+                  S/. {product.price.toFixed(2)}
                 </span>
                 <span className="text-sm text-on-surface-variant line-through uppercase tracking-wider opacity-50">
-                  S/. 158.00
+                  S/. {(product.price * 1.28).toFixed(2)}
                 </span>
               </div>
             </div>
 
             <p className="text-on-secondary-container leading-relaxed max-w-md font-body">
-              Una obra maestra de la ingeniería aditiva. Ronin Cyber-Gen redefine
-              el coleccionismo digital con una precisión de capa de{" "}
-              <span className="text-on-surface font-semibold">0.05mm</span>. Cada
-              unidad es post-procesada meticulosamente y terminada a mano para
-              lograr un acabado industrial auténtico que desafía los límites de
-              la manufactura tradicional.
+              {product.description}
             </p>
 
             {/* Technical Specs Table */}
@@ -81,31 +160,31 @@ export default function ProductDetailPage() {
                     Material
                   </span>
                   <span className="text-sm font-semibold text-on-surface">
-                    Resin 8K (Precision Grade)
+                    {product.material || "Resina de Alta Definición"}
                   </span>
                 </div>
                 <div className="flex flex-col gap-1">
                   <span className="text-[0.6rem] uppercase tracking-wider text-on-surface-variant/60 font-bold">
-                    Dimensiones
+                    Disponibilidad
                   </span>
                   <span className="text-sm font-semibold text-on-surface">
-                    25cm (Altura)
+                    {product.availability ? "Disponible (En Stock)" : "Bajo Pedido"}
                   </span>
                 </div>
                 <div className="flex flex-col gap-1">
                   <span className="text-[0.6rem] uppercase tracking-wider text-on-surface-variant/60 font-bold">
-                    Tiempo de Impresión
+                    Tiempo de Producción
                   </span>
                   <span className="text-sm font-semibold text-on-surface">
-                    48 Horas de Ciclo Único
+                    {product.availability ? "Inmediato" : "48 - 72 Horas"}
                   </span>
                 </div>
                 <div className="flex flex-col gap-1">
                   <span className="text-[0.6rem] uppercase tracking-wider text-on-surface-variant/60 font-bold">
-                    Escala
+                    Escala Recomendada
                   </span>
                   <span className="text-sm font-semibold text-on-surface">
-                    1:6 Professional Scale
+                    1:6 / 1:10 Standard
                   </span>
                 </div>
               </div>
@@ -127,14 +206,13 @@ export default function ProductDetailPage() {
 
             {/* Chips */}
             <div className="flex flex-wrap gap-2">
+              {product.tags && product.tags.map((tag, idx) => (
+                <span key={idx} className="px-3 py-1 bg-surface-bright text-[0.65rem] font-bold uppercase tracking-wider text-on-surface rounded-sm">
+                  #{tag}
+                </span>
+              ))}
               <span className="px-3 py-1 bg-surface-bright text-[0.65rem] font-bold uppercase tracking-wider text-on-surface rounded-sm">
-                Limited Edition
-              </span>
-              <span className="px-3 py-1 bg-surface-bright text-[0.65rem] font-bold uppercase tracking-wider text-on-surface rounded-sm">
-                UV Stable
-              </span>
-              <span className="px-3 py-1 bg-surface-bright text-[0.65rem] font-bold uppercase tracking-wider text-on-surface rounded-sm">
-                Ready to Display
+                {product.availability ? "Listo para Enviar" : "A Pedido Personalizado"}
               </span>
             </div>
           </div>

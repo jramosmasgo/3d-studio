@@ -1,27 +1,37 @@
 import Image from "next/image";
+import { PageContent } from "@/lib/firebase/contenido-service";
 
-const capabilities = [
-  {
-    number: "01",
-    title: "Modelado Digital Pro",
-    description:
-      "Asesoría y desarrollo en Fusion 360, Blender y AutoCAD. Convertimos ideas complejas en soluciones funcionales para ingeniería y arquitectura.",
-  },
-  {
-    number: "02",
-    title: "Prototipado Técnico",
-    description:
-      "Desarrollamos piezas mecánicas, maquetas y prototipos industriales con precisión milimétrica en resina y filamento.",
-  },
-  {
-    number: "03",
-    title: "Personajes y Arte",
-    description:
-      "Creación de personajes y figuras animadas con acabados de alta calidad, fusionando arte digital con fabricación aditiva de vanguardia.",
-  },
-];
+interface CapacidadesSectionProps {
+  content?: PageContent | null;
+}
 
-export default function CapacidadesSection() {
+export default function CapacidadesSection({ content }: CapacidadesSectionProps) {
+  const sections = content?.sections || {};
+
+  const capabilities = [
+    {
+      number: "01",
+      title: sections.cap1Title || "Modelado Digital Pro",
+      description:
+        sections.cap1Desc ||
+        "Asesoría y desarrollo en Fusion 360, Blender y AutoCAD. Convertimos ideas complejas en soluciones funcionales para ingeniería y arquitectura.",
+    },
+    {
+      number: "02",
+      title: sections.cap2Title || "Prototipado Técnico",
+      description:
+        sections.cap2Desc ||
+        "Desarrollamos piezas mecánicas, maquetas y prototipos industriales con precisión milimétrica en resina y filamento.",
+    },
+    {
+      number: "03",
+      title: sections.cap3Title || "Personajes y Arte",
+      description:
+        sections.cap3Desc ||
+        "Creación de personajes y figuras animadas con acabados de alta calidad, fusionando arte digital con fabricación aditiva de vanguardia.",
+    },
+  ];
+
   return (
     <section className="py-32 md:py-48 bg-[#0e0e0e] overflow-hidden relative">
       <div className="container mx-auto px-12 relative z-10">
@@ -34,13 +44,17 @@ export default function CapacidadesSection() {
                 className="text-[#ffb4ab] text-xs font-bold tracking-widest uppercase"
                 style={{ fontFamily: "var(--font-inter)" }}
               >
-                Nuestras Capacidades
+                {sections.capBadge || "Nuestras Capacidades"}
               </span>
               <h2
                 className="text-5xl md:text-6xl font-bold mt-6 leading-tight"
                 style={{ fontFamily: "var(--font-space-grotesk)" }}
               >
-                Calidad Visual <br /> Industrial
+                {sections.capTitle || (
+                  <>
+                    Calidad Visual <br /> Industrial
+                  </>
+                )}
               </h2>
             </div>
 
@@ -82,7 +96,10 @@ export default function CapacidadesSection() {
             {/* Main image */}
             <div className="aspect-video bg-[#2a2a2a] rounded-xl overflow-hidden shadow-2xl relative">
               <Image
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuDhy9-w6HrqR803Cd70xkrMWZo58Kjl9AvxBTemcDqgKGM7GcVDmprcCfcQrYg68fU6NmEpNMYtupw2QUOkzmz-itrUMrQNzheo8jrCLhSPG4k_J-i62LoU9O-kt4UAI1Ej2CR-xWCTgpKavpHFGyjT1gZlNcpTRdueu5jcCu3eVBylowEaU0cUUz3tUrXVRAPuMue_ralMBxD-ZC3Yfty4Bq27ruv-qGuKhiXXoK7U_nDtt80rKDFG3jVTkfeGtpYV3VFxnj7BD7AH"
+                src={
+                  sections.capImage ||
+                  "https://lh3.googleusercontent.com/aida-public/AB6AXuDhy9-w6HrqR803Cd70xkrMWZo58Kjl9AvxBTemcDqgKGM7GcVDmprcCfcQrYg68fU6NmEpNMYtupw2QUOkzmz-itrUMrQNzheo8jrCLhSPG4k_J-i62LoU9O-kt4UAI1Ej2CR-xWCTgpKavpHFGyjT1gZlNcpTRdueu5jcCu3eVBylowEaU0cUUz3tUrXVRAPuMue_ralMBxD-ZC3Yfty4Bq27ruv-qGuKhiXXoK7U_nDtt80rKDFG3jVTkfeGtpYV3VFxnj7BD7AH"
+                }
                 alt="Close up of a resin 3D printer bed lifting a highly detailed monster figure"
                 fill
                 className="object-cover"
@@ -90,7 +107,7 @@ export default function CapacidadesSection() {
               />
               <div className="absolute inset-0 bg-black/20 hover:bg-black/0 transition-colors duration-500" />
 
-              {/* Floating print status */}
+              {/* Floating print status (Excepción: se mantiene fijo por requerimiento) */}
               <div className="absolute top-8 right-8 bg-black/60 backdrop-blur-md p-6 border-l-2 border-[#ffb4ab]">
                 <div className="flex items-center gap-4 mb-3">
                   <div className="w-2.5 h-2.5 rounded-full bg-[#ffb4ab] animate-pulse" />
@@ -140,14 +157,14 @@ export default function CapacidadesSection() {
                 className="font-bold text-lg mb-2"
                 style={{ fontFamily: "var(--font-space-grotesk)" }}
               >
-                Calidad Colección
+                {sections.capBadgeTitle || "Calidad Colección"}
               </h4>
               <p
                 className="text-xs text-[#e5e2e1]/50 leading-relaxed"
                 style={{ fontFamily: "var(--font-inter)" }}
               >
-                Inspección de 12 puntos antes del envío para asegurar la
-                perfección total.
+                {sections.capBadgeDesc ||
+                  "Inspección de 12 puntos antes del envío para asegurar la perfección total."}
               </p>
             </div>
           </div>

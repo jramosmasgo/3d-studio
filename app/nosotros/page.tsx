@@ -1,8 +1,71 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import TopNavBar from "../components/TopNavBar";
 import Footer from "../components/Footer";
 import Image from "next/image";
+import { getPageContent, type PageContent } from "@/lib/firebase/contenido-service";
 
 export default function NosotrosPage() {
+  const [content, setContent] = useState<PageContent | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadContent() {
+      try {
+        const data = await getPageContent("nosotros");
+        setContent(data);
+      } catch (error) {
+        console.error("Error loading nosotros content:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadContent();
+  }, []);
+
+  // Helper to validate and fallback image URLs
+  const getValidImage = (url: any, fallback: string) => {
+    if (!url || typeof url !== "string" || url.trim() === "" || url === "undefined" || url === "null") {
+      return fallback;
+    }
+    return url;
+  };
+
+  if (loading) {
+    return (
+      <div className="bg-background min-h-screen text-on-surface flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <p className="text-on-surface/60 font-body text-sm">Cargando...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Fallbacks variables for cleaner layout mapping
+  const heroImgUrl = getValidImage(
+    content?.sections?.heroImage,
+    "https://images.unsplash.com/photo-1581092160562-40aa08e78837?q=80&w=2070"
+  );
+  
+  const gal1 = getValidImage(
+    content?.sections?.galeriaImg1,
+    "https://lh3.googleusercontent.com/aida-public/AB6AXuA5kpLecDl-mNwoFkAyrq6nKvOykmdpsYwfaxVzorx_QfhF9btDBD4xHpcYp6Rgfx_sT3ZFFJHEaUtM84V9CIQOddHsyYzxpfZlfWXD8EIkjnwpwDbZfrfEv2okaCv75ph2oZfCUV08DFgDZGydfTV_xCGbl2hBz9NOLW0K57OrcskrNtjy3oP4RgOQnf9aQUg2IX1zNFFeroKZflLw4tg5eTvpSXsTYtq7SMzp2AHNEbdQbTEz9TGBiHvDl2wyyBIXerMsE5vl3dNl"
+  );
+  const gal2 = getValidImage(
+    content?.sections?.galeriaImg2,
+    "https://lh3.googleusercontent.com/aida-public/AB6AXuBqBuEyIxkt9XqmgXy_OYjvT5G8LzEEsMbp5x8WSH0v0Yyk7MVUZgt8bc3pDpslvZ3q_W5TDu6h9e8G7BwnxVw28RrqMrlNm33rObH1BXZDdV-fRfq0H6FWqIa-8144f2TCRrGsIuE0lxmf5UQnXyF0RsTON_ZcItLPWqzh8zTvoMizPG7gnXRkh5qNHEZ5ljogcWXeNP-8QAEDe8M0HcccPc6vYs5Qa1BDy-5_DeCiXGSsa5ELf_kdmMbZUcI737cs2IBh6POuI_B2"
+  );
+  const gal3 = getValidImage(
+    content?.sections?.galeriaImg3,
+    "https://lh3.googleusercontent.com/aida-public/AB6AXuDFlfiUM9E09r2j2gK6ti308bGSFoyN7Nh-oy6eN5TQBm4n9bt1XhRo12zSIGIqJcgypMnnofEwnBxo9QrUYqGvHwlu66msDFWRvu6UwQFdJwxmHWcpotQuSq40EhD6-rhFTRBTXFjtoCi2Nsr-ABm_UNin-viJBm5H6YszR8I6dHCyIpFX8bQCAOWh6fsPEXq14agiHTGSmVVrgkPGCCZ89vVCTGGAz1Orbb7yP7jEmBGPKVJMq9oA8wZwTfCUtx1GATpOguBysPh4"
+  );
+  const gal4 = getValidImage(
+    content?.sections?.galeriaImg4,
+    "https://lh3.googleusercontent.com/aida-public/AB6AXuBKWPi2WGnDf-EVCczXhwVhHaESNL9gFAPLd00z-7enFJztEIlolHho2UALCqcjcw-XHv2U8z8G7683gEcLd4UITG66Twq4zJISRnYHbeRdZ4-KAHQgcGhfLba4jg-cULx50i-Yi9hyut05-ieaQpW_Th1KG6KRJpNqq1xIWa1A3Ma6lI1pF-BovbzsiJE6KL_zkG9TZfyeKLKOa6qUMOi7dDkRwRiIaOC2G5DT94b2LM_kqyCQ5cbMLkW4TVdB9_D2hSg5cvCbzOs8"
+  );
+
   return (
     <>
       <TopNavBar />
@@ -11,25 +74,24 @@ export default function NosotrosPage() {
         <section className="relative min-h-[80vh] flex items-center px-8 lg:px-24 py-20 overflow-hidden">
           <div className="absolute inset-0 z-0">
             <Image
-              src="https://images.unsplash.com/photo-1581092160562-40aa08e78837?q=80&w=2070"
+              src={heroImgUrl}
               alt="Laboratorio de impresión 3D"
               fill
               className="object-cover grayscale brightness-50 opacity-20"
               priority
+              unoptimized
             />
             <div className="absolute inset-0 bg-gradient-to-r from-surface via-surface/80 to-transparent"></div>
           </div>
           <div className="relative z-10 max-w-4xl">
             <span className="inline-block px-3 py-1 bg-primary-container text-on-primary-container text-[10px] font-bold tracking-[0.2em] uppercase mb-6 rounded-sm">
-              Artesanía Aditiva Industrial
+              {content?.subtitle || "Artesanía Aditiva Industrial"}
             </span>
             <h1 className="text-5xl md:text-8xl font-bold tracking-tighter leading-none mb-8 font-headline uppercase">
-              Impresión 3D <br />
-              <span className="text-primary-container">Diseño y</span> <br />
-              Modelado.
+              {content?.title || "Impresión 3D Diseño y Modelado."}
             </h1>
             <p className="text-xl text-on-surface/70 leading-relaxed max-w-2xl font-light font-body">
-              Studio 3D es una empresa especializada en impresión 3D, modelado digital y diseño personalizado. Desarrollamos maquetas, prototipos, personajes, figuras animadas, piezas mecánicas y proyectos técnicos para ingeniería, arquitectura, diseño y emprendimientos.
+              {content?.description || "Studio 3D es una empresa especializada en impresión 3D, modelado digital y diseño personalizado. Desarrollamos maquetas, prototipos, personajes, figuras animadas, piezas mecánicas y proyectos técnicos para ingeniería, arquitectura, diseño y emprendimientos."}
             </p>
           </div>
         </section>
@@ -40,10 +102,10 @@ export default function NosotrosPage() {
             <div className="md:col-span-8 bg-surface-container-low p-12 flex flex-col justify-between min-h-[400px] border border-outline-variant/5">
               <div>
                 <h2 className="text-4xl font-bold tracking-tight mb-6 font-headline">
-                  NUESTRA MISIÓN
+                  {content?.sections?.misionTitle || "NUESTRA MISIÓN"}
                 </h2>
                 <p className="text-lg text-on-surface/60 leading-relaxed font-body">
-                  En Studio 3D transformamos ideas en proyectos reales mediante impresión 3D, modelado digital y diseño personalizado. Brindamos soluciones innovadoras en creación de personajes, figuras animadas, piezas técnicas mecánicas y asesoría especializada en software como Fusion 360, Blender y AutoCAD, ofreciendo calidad, creatividad y tecnología para estudiantes, empresas y profesionales.
+                  {content?.sections?.misionContent || "En Studio 3D transformamos ideas en proyectos reales mediante impresión 3D, modelado digital y diseño personalizado. Brindamos soluciones innovadoras en creación de personajes, figuras animadas, piezas técnicas mecánicas y asesoría especializada en software como Fusion 360, Blender y AutoCAD, ofreciendo calidad, creatividad y tecnología para estudiantes, empresas y profesionales."}
                 </p>
               </div>
               <div className="flex flex-wrap gap-4 mt-8">
@@ -63,10 +125,10 @@ export default function NosotrosPage() {
             </div>
             <div className="md:col-span-4 bg-primary-container p-12 flex flex-col justify-center relative overflow-hidden group">
               <h2 className="text-4xl font-bold tracking-tight text-white mb-6 font-headline relative z-10">
-                VISIÓN
+                {content?.sections?.visionTitle || "VISIÓN"}
               </h2>
               <p className="text-lg text-white/80 leading-relaxed font-body relative z-10">
-                Ser una empresa líder en fabricación digital y diseño 3D en Perú, reconocida por la innovación, creatividad y excelencia en impresión 3D, desarrollo de personajes, proyectos técnicos y asesoramiento profesional para distintas industrias y áreas académicas.
+                {content?.sections?.visionContent || "Ser una empresa líder en fabricación digital y diseño 3D en Perú, reconocida por la innovación, creatividad y excelencia en impresión 3D, desarrollo de personajes, proyectos técnicos y asesoramiento profesional para distintas industrias y áreas académicas."}
               </p>
               <span className="material-symbols-outlined text-9xl text-white/10 absolute -bottom-4 -right-4 transition-transform group-hover:scale-110 duration-700">
                 rocket_launch
@@ -84,7 +146,7 @@ export default function NosotrosPage() {
                 <div className="space-y-4 pt-12">
                   <div className="relative h-64 w-full rounded-lg overflow-hidden group">
                     <Image
-                      src="https://lh3.googleusercontent.com/aida-public/AB6AXuA5kpLecDl-mNwoFkAyrq6nKvOykmdpsYwfaxVzorx_QfhF9btDBD4xHpcYp6Rgfx_sT3ZFFJHEaUtM84V9CIQOddHsyYzxpfZlfWXD8EIkjnwpwDbZfrfEv2okaCv75ph2oZfCUV08DFgDZGydfTV_xCGbl2hBz9NOLW0K57OrcskrNtjy3oP4RgOQnf9aQUg2IX1zNFFeroKZflLw4tg5eTvpSXsTYtq7SMzp2AHNEbdQbTEz9TGBiHvDl2wyyBIXerMsE5vl3dNl"
+                      src={gal1}
                       alt="Proceso de acabado artesanal"
                       fill
                       className="object-cover grayscale hover:grayscale-0 transition-all duration-700 scale-105 group-hover:scale-100"
@@ -93,7 +155,7 @@ export default function NosotrosPage() {
                   </div>
                   <div className="relative h-80 w-full rounded-lg overflow-hidden group">
                     <Image
-                      src="https://lh3.googleusercontent.com/aida-public/AB6AXuBqBuEyIxkt9XqmgXy_OYjvT5G8LzEEsMbp5x8WSH0v0Yyk7MVUZgt8bc3pDpslvZ3q_W5TDu6h9e8G7BwnxVw28RrqMrlNm33rObH1BXZDdV-fRfq0H6FWqIa-8144f2TCRrGsIuE0lxmf5UQnXyF0RsTON_ZcItLPWqzh8zTvoMizPG7gnXRkh5qNHEZ5ljogcWXeNP-8QAEDe8M0HcccPc6vYs5Qa1BDy-5_DeCiXGSsa5ELf_kdmMbZUcI737cs2IBh6POuI_B2"
+                      src={gal2}
                       alt="Impresoras industriales"
                       fill
                       className="object-cover grayscale hover:grayscale-0 transition-all duration-700 scale-105 group-hover:scale-100"
@@ -104,7 +166,7 @@ export default function NosotrosPage() {
                 <div className="space-y-4">
                   <div className="relative h-80 w-full rounded-lg overflow-hidden group">
                     <Image
-                      src="https://lh3.googleusercontent.com/aida-public/AB6AXuDFlfiUM9E09r2j2gK6ti308bGSFoyN7Nh-oy6eN5TQBm4n9bt1XhRo12zSIGIqJcgypMnnofEwnBxo9QrUYqGvHwlu66msDFWRvu6UwQFdJwxmHWcpotQuSq40EhD6-rhFTRBTXFjtoCi2Nsr-ABm_UNin-viJBm5H6YszR8I6dHCyIpFX8bQCAOWh6fsPEXq14agiHTGSmVVrgkPGCCZ89vVCTGGAz1Orbb7yP7jEmBGPKVJMq9oA8wZwTfCUtx1GATpOguBysPh4"
+                      src={gal3}
                       alt="Diseño digital a físico"
                       fill
                       className="object-cover grayscale hover:grayscale-0 transition-all duration-700 scale-105 group-hover:scale-100"
@@ -113,7 +175,7 @@ export default function NosotrosPage() {
                   </div>
                   <div className="relative h-64 w-full rounded-lg overflow-hidden group">
                     <Image
-                      src="https://lh3.googleusercontent.com/aida-public/AB6AXuBKWPi2WGnDf-EVCczXhwVhHaESNL9gFAPLd00z-7enFJztEIlolHho2UALCqcjcw-XHv2U8z8G7683gEcLd4UITG66Twq4zJISRnYHbeRdZ4-KAHQgcGhfLba4jg-cULx50i-Yi9hyut05-ieaQpW_Th1KG6KRJpNqq1xIWa1A3Ma6lI1pF-BovbzsiJE6KL_zkG9TZfyeKLKOa6qUMOi7dDkRwRiIaOC2G5DT94b2LM_kqyCQ5cbMLkW4TVdB9_D2hSg5cvCbzOs8"
+                      src={gal4}
                       alt="Detalle microscópico de impresión"
                       fill
                       className="object-cover grayscale hover:grayscale-0 transition-all duration-700 scale-105 group-hover:scale-100"
@@ -125,8 +187,7 @@ export default function NosotrosPage() {
             </div>
             <div className="order-1 lg:order-2">
               <h2 className="text-5xl font-bold tracking-tighter mb-12 leading-tight font-headline">
-                INGENIERÍA <br /> ADITIVA DE <br />{" "}
-                <span className="text-primary-container">PRECISIÓN.</span>
+                {content?.sections?.ingenieriaTitle || "INGENIERÍA ADITIVA DE PRECISIÓN."}
               </h2>
               <div className="space-y-10">
                 <div className="group">
@@ -134,10 +195,10 @@ export default function NosotrosPage() {
                     <span className="material-symbols-outlined text-primary-container">
                       architecture
                     </span>
-                    DISEÑO PERSONALIZADO
+                    {content?.sections?.item1Title || "DISEÑO PERSONALIZADO"}
                   </h3>
                   <p className="text-on-surface/50 leading-relaxed font-body">
-                    Brindamos asesoría y desarrollo de proyectos en Fusion 360, Blender y AutoCAD, ayudando a estudiantes y profesionales a convertir sus ideas en soluciones funcionales y visualmente impactantes.
+                    {content?.sections?.item1Desc || "Brindamos asesoría y desarrollo de proyectos en Fusion 360, Blender y AutoCAD, ayudando a estudiantes y profesionales a convertir sus ideas en soluciones funcionales y visualmente impactantes."}
                   </p>
                 </div>
                 <div className="group">
@@ -145,10 +206,11 @@ export default function NosotrosPage() {
                     <span className="material-symbols-outlined text-primary-container">
                       precision_manufacturing
                     </span>
-                    RESINA Y FILAMENTO
+                    {content?.sections?.item2Title || "RESINA Y FILAMENTO"}
                   </h3>
                   <p className="text-on-surface/50 leading-relaxed font-body">
-                    Trabajamos con impresión 3D en resina y filamento, ofreciendo acabados de alta calidad y precisión técnica para maquetas, prototipos y piezas mecánicas.
+                    {content?.sections?.item2Desc || "Trabajamos con impresión 3D en resina y filamento, ofreciendo acabados de alta calidad y precisión técnica para maquetas, prototipos y piezas mecánicas."
+                    }
                   </p>
                 </div>
                 <div className="group">
@@ -156,18 +218,16 @@ export default function NosotrosPage() {
                     <span className="material-symbols-outlined text-primary-container">
                       local_shipping
                     </span>
-                    ENVÍOS NACIONALES
+                    {content?.sections?.item3Title || "ENVÍOS NACIONALES"}
                   </h3>
                   <p className="text-on-surface/50 leading-relaxed font-body">
-                    Ofrecemos envíos a nivel nacional en todo el Perú, asegurando que tus proyectos lleguen de manera segura y puntual a cualquier destino.
+                    {content?.sections?.item3Desc || "Ofrecemos envíos a nivel nacional en todo el Perú, asegurando que tus proyectos lleguen de manera segura y puntual a cualquier destino."}
                   </p>
                 </div>
               </div>
             </div>
           </div>
         </section>
-
-
 
         {/* Contact Section */}
         <section className="px-8 lg:px-24 py-32 bg-surface">
@@ -236,19 +296,17 @@ export default function NosotrosPage() {
                   </div>
                 </div>
               </div>
-              <div className="mt-16 w-full h-64 bg-surface-container-highest rounded-lg overflow-hidden relative border border-outline-variant/10">
-                <div className="absolute inset-0 opacity-40 mix-blend-luminosity">
-                  <Image
-                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuAvJgLBojQpnS4vPqAD6qAJf4B69B1q-ETovMU1eRxgYIzdG2PTDwz6DCi2hMWt6Cus8YnpGk-5g_ANGzZl1jtx4qG1LDyRdMbL8LIjsq3lvG5dvPLH_x4wm4dDuXRXBVwzn23MTxM32kQK7UtCtqDMJ9YjnuIcA6nZNlsv9jgD-1cDljVLk3QoXVtoywCcxNSxFK9zqUO6UcOC-ZjPWgUSXoNrReDQeDkhSveSe6_TTHdvArWeMyQf4Xhpqx0mAdzbilK3ZmfDPBOz"
-                    alt="Mapa de ubicación"
-                    fill
-                    className="object-cover"
-                    unoptimized
-                  />
-                </div>
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <div className="w-8 h-8 bg-primary-container rounded-full animate-pulse border-4 border-white/20"></div>
-                </div>
+              <div className="mt-16 w-full h-72 rounded-lg overflow-hidden relative border border-outline-variant/10 shadow-lg bg-surface-container-highest">
+                <iframe
+                  src="https://maps.google.com/maps?q=Alejandro%20O.%20Deustua%20689%2C%20Huancayo%2C%20Peru&t=&z=16&ie=UTF8&iwloc=&output=embed"
+                  width="100%"
+                  height="100%"
+                  style={{ border: 0 }}
+                  allowFullScreen={true}
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                  className="grayscale opacity-75 hover:grayscale-0 hover:opacity-100 transition-all duration-500"
+                />
               </div>
             </div>
             <div className="lg:col-span-7">

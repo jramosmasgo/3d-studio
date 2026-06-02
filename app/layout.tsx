@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Space_Grotesk, Inter } from "next/font/google";
 import "./globals.css";
+import { AuthProvider } from "@/lib/auth/AuthContext";
 
 const spaceGrotesk = Space_Grotesk({
   variable: "--font-space-grotesk",
@@ -21,6 +22,8 @@ export const metadata: Metadata = {
   keywords: ["Studio 3D", "impresión 3D Perú", "modelado digital", "Fusion 360", "Huancayo", "maquetas", "prototipos"],
 };
 
+import WhatsAppButton from "./components/WhatsAppButton";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -38,7 +41,10 @@ export default function RootLayout({
       <body
         className={`${spaceGrotesk.variable} ${inter.variable} antialiased min-h-screen`}
       >
-        {children}
+        <AuthProvider>
+          {children}
+          <WhatsAppButton />
+        </AuthProvider>
       </body>
     </html>
   );
