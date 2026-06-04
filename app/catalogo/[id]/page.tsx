@@ -7,28 +7,79 @@ import Footer from "../../components/Footer";
 import Image from "next/image";
 import Link from "next/link";
 import { getProduct, type Product, incrementProductViews } from "@/lib/firebase/products-service";
+import { getOfertas, type Oferta } from "@/lib/firebase/ofertas-service";
+
+function getDiscountedPrice(product: Product, offer: Oferta | null): { discountedPrice: number; hasDiscount: boolean } {
+  if (!offer || !offer.isActive) {
+    return { discountedPrice: product.price, hasDiscount: false };
+  }
+
+  const todayStr = new Date().toISOString().split("T")[0];
+  if (offer.startDate && todayStr < offer.startDate) {
+    return { discountedPrice: product.price, hasDiscount: false };
+  }
+  if (offer.endDate && todayStr > offer.endDate) {
+    return { discountedPrice: product.price, hasDiscount: false };
+  }
+
+  let applies = false;
+  if (offer.targetType === "all") {
+    applies = true;
+  } else if (offer.targetType === "category" && offer.category) {
+    applies = product.categoryName?.toLowerCase() === offer.category.toLowerCase();
+  } else if (offer.targetType === "tags" && offer.tags && offer.tags.length > 0) {
+    applies = product.tags.some((t) => offer.tags.includes(t));
+  }
+
+  if (applies) {
+    if (offer.discountType === "percentage") {
+      const discount = product.price * (offer.discountValue / 100);
+      return { discountedPrice: Math.max(0, product.price - discount), hasDiscount: true };
+    } else if (offer.discountType === "money") {
+      return { discountedPrice: Math.max(0, product.price - offer.discountValue), hasDiscount: true };
+    }
+  }
+
+  return { discountedPrice: product.price, hasDiscount: false };
+}
 
 export default function ProductDetailPage() {
   const params = useParams();
   const id = params?.id as string;
 
   const [product, setProduct] = useState<Product | null>(null);
+  const [activeOffer, setActiveOffer] = useState<Oferta | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeIndex, setActiveIndex] = useState(0);
+
+  const handleBuyOnWhatsapp = () => {
+    if (!product) return;
+    const currentUrl = window.location.href;
+    const text = `Hola, deseo consultar sobre el producto "${product.name}". Estaba viendo este enlace: ${currentUrl}`;
+    const whatsappUrl = `https://wa.me/51978911898?text=${encodeURIComponent(text)}`;
+    window.open(whatsappUrl, "_blank");
+  };
 
   useEffect(() => {
     if (!id) return;
     async function loadProduct() {
       try {
         // Incrementar vistas
-        await incrementProductViews(id).catch(err => 
+        await incrementProductViews(id).catch(err =>
           console.error("Error incrementing product views:", err)
         );
-        
-        const prod = await getProduct(id);
+
+        const [prod, offers] = await Promise.all([
+          getProduct(id),
+          getOfertas(),
+        ]);
+
         if (prod) {
           setProduct(prod);
         }
+
+        const active = offers.find((o) => o.isActive) || null;
+        setActiveOffer(active);
       } catch (err) {
         console.error("Error loading product:", err);
       } finally {
@@ -37,6 +88,59 @@ export default function ProductDetailPage() {
     }
     loadProduct();
   }, [id]);
+
+  useEffect(() => {
+    if (!product) return;
+
+    // Helper para actualizar o crear meta tags
+    const updateOrCreateMetaTag = (keyName: string, keyValue: string, contentValue: string) => {
+      let el = document.querySelector(`meta[${keyName}="${keyValue}"]`);
+      let isNew = false;
+      if (!el) {
+        el = document.createElement("meta");
+        el.setAttribute(keyName, keyValue);
+        document.head.appendChild(el);
+        isNew = true;
+      }
+      el.setAttribute("content", contentValue);
+      return { el, isNew };
+    };
+
+    // Guardar el título original
+    const originalTitle = document.title;
+    document.title = `${product.name} | Studio 3D`;
+
+    // Actualizar meta description
+    const metaDescription = document.querySelector('meta[name="description"]');
+    const originalDescription = metaDescription?.getAttribute("content") || "";
+
+    if (metaDescription) {
+      metaDescription.setAttribute("content", product.description || "");
+    } else {
+      const meta = document.createElement("meta");
+      meta.name = "description";
+      meta.content = product.description || "";
+      document.head.appendChild(meta);
+    }
+
+    // Actualizar metadatos Open Graph
+    const ogTitle = updateOrCreateMetaTag("property", "og:title", `${product.name} | Studio 3D`);
+    const ogDescription = updateOrCreateMetaTag("property", "og:description", product.description || "");
+    
+    const firstImageUrl = product.images?.[0]?.url || "";
+    const ogImage = updateOrCreateMetaTag("property", "og:image", firstImageUrl);
+
+    return () => {
+      document.title = originalTitle;
+      if (metaDescription) {
+        metaDescription.setAttribute("content", originalDescription);
+      }
+      // Limpiar etiquetas og creadas dinámicamente al desmontar
+      if (ogTitle.isNew) ogTitle.el.remove();
+      if (ogDescription.isNew) ogDescription.el.remove();
+      if (ogImage.isNew) ogImage.el.remove();
+    };
+  }, [product]);
 
   if (loading) {
     return (
@@ -69,7 +173,7 @@ export default function ProductDetailPage() {
     <>
       <TopNavBar />
       <main className="max-w-[1440px] mx-auto px-8 md:px-16 py-12 lg:py-24 pt-32">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 items-start pt-16">
           {/* Gallery Section */}
           <div className="lg:col-span-7 flex flex-col gap-6">
             <div className="relative group overflow-hidden bg-surface-container-low aspect-[4/5] md:aspect-square flex items-center justify-center rounded-lg border border-outline-variant/10 shadow-md">
@@ -81,11 +185,11 @@ export default function ProductDetailPage() {
                 unoptimized
                 priority
               />
-              
+
               {/* Navigation overlays */}
               {productImages.length > 1 && (
                 <>
-                  <button 
+                  <button
                     onClick={() => setActiveIndex((prev) => (prev === 0 ? productImages.length - 1 : prev - 1))}
                     className="absolute left-4 top-1/2 -translate-y-1/2 p-3 bg-black/40 hover:bg-black/60 text-white rounded-full transition-all duration-300 opacity-0 group-hover:opacity-100 backdrop-blur-sm shadow-lg hover:scale-105"
                     aria-label="Imagen anterior"
@@ -94,7 +198,7 @@ export default function ProductDetailPage() {
                       <path d="M15 19l-7-7 7-7" />
                     </svg>
                   </button>
-                  <button 
+                  <button
                     onClick={() => setActiveIndex((prev) => (prev === productImages.length - 1 ? 0 : prev + 1))}
                     className="absolute right-4 top-1/2 -translate-y-1/2 p-3 bg-black/40 hover:bg-black/60 text-white rounded-full transition-all duration-300 opacity-0 group-hover:opacity-100 backdrop-blur-sm shadow-lg hover:scale-105"
                     aria-label="Siguiente imagen"
@@ -106,18 +210,17 @@ export default function ProductDetailPage() {
                 </>
               )}
             </div>
-            
+
             {/* Thumbnails Row */}
             <div className="flex gap-4 overflow-x-auto py-2 scrollbar-none justify-start">
               {productImages.map((image, idx) => (
                 <button
                   key={idx}
                   onClick={() => setActiveIndex(idx)}
-                  className={`relative aspect-square w-24 md:w-28 rounded-md overflow-hidden flex-shrink-0 transition-all duration-300 border-2 ${
-                    activeIndex === idx 
-                      ? "border-primary scale-[1.02] shadow-md shadow-primary/20 brightness-110" 
-                      : "border-outline-variant/30 opacity-70 hover:opacity-100 hover:border-outline-variant"
-                  }`}
+                  className={`relative aspect-square w-24 md:w-28 rounded-md overflow-hidden flex-shrink-0 transition-all duration-300 border-2 ${activeIndex === idx
+                    ? "border-primary scale-[1.02] shadow-md shadow-primary/20 brightness-110"
+                    : "border-outline-variant/30 opacity-70 hover:opacity-100 hover:border-outline-variant"
+                    }`}
                 >
                   <Image
                     src={image.src}
@@ -140,13 +243,27 @@ export default function ProductDetailPage() {
               <h1 className="font-headline text-5xl md:text-7xl font-bold tracking-tighter text-on-surface leading-[0.9] mb-4">
                 {product.name}
               </h1>
-              <div className="flex items-baseline gap-4 mt-6">
-                <span className="text-3xl font-headline font-medium text-on-surface">
-                  S/. {product.price.toFixed(2)}
-                </span>
-                <span className="text-sm text-on-surface-variant line-through uppercase tracking-wider opacity-50">
-                  S/. {(product.price * 1.28).toFixed(2)}
-                </span>
+              <div className="flex items-baseline gap-4 mt-6 flex-wrap">
+                {(() => {
+                  const { discountedPrice, hasDiscount } = getDiscountedPrice(product, activeOffer);
+                  return hasDiscount ? (
+                    <>
+                      <span className="text-3xl font-headline font-bold text-primary">
+                        S/. {discountedPrice.toFixed(2)}
+                      </span>
+                      <span className="text-sm text-on-surface-variant line-through uppercase tracking-wider opacity-50">
+                        S/. {product.price.toFixed(2)}
+                      </span>
+                      <span className="text-xs px-2.5 py-1 bg-primary/10 border border-primary/20 text-primary uppercase font-bold rounded-sm tracking-wider">
+                        {activeOffer?.title}
+                      </span>
+                    </>
+                  ) : (
+                    <span className="text-3xl font-headline font-medium text-on-surface">
+                      S/. {product.price.toFixed(2)}
+                    </span>
+                  );
+                })()}
               </div>
             </div>
 
@@ -176,28 +293,30 @@ export default function ProductDetailPage() {
                     {product.availability ? "Disponible (En Stock)" : "Bajo Pedido"}
                   </span>
                 </div>
-                <div className="flex flex-col gap-1">
+                <div className="col-span-2 flex flex-col gap-2">
                   <span className="text-[0.6rem] uppercase tracking-wider text-on-surface-variant/60 font-bold">
-                    Tiempo de Producción
+                    Etiquetas
                   </span>
-                  <span className="text-sm font-semibold text-on-surface">
-                    {product.availability ? "Inmediato" : "48 - 72 Horas"}
-                  </span>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <span className="text-[0.6rem] uppercase tracking-wider text-on-surface-variant/60 font-bold">
-                    Escala Recomendada
-                  </span>
-                  <span className="text-sm font-semibold text-on-surface">
-                    1:6 / 1:10 Standard
-                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    {product.tags && product.tags.map((tag, idx) => (
+                      <span key={idx} className="px-2.5 py-1 bg-surface-bright text-[0.6rem] font-bold uppercase tracking-wider text-on-surface rounded-sm border border-outline-variant/10">
+                        #{tag}
+                      </span>
+                    ))}
+                    <span className="px-2.5 py-1 bg-surface-bright text-[0.6rem] font-bold uppercase tracking-wider text-on-surface rounded-sm border border-outline-variant/10">
+                      {product.availability ? "Listo para Enviar" : "A Pedido Personalizado"}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
 
             {/* Actions */}
             <div className="flex flex-col gap-4">
-              <button className="w-full py-5 bg-primary-container text-white font-headline font-bold uppercase tracking-widest text-sm hover:brightness-110 active:scale-[0.98] transition-all rounded-sm shadow-lg shadow-primary-container/20 flex items-center justify-center">
+              <button
+                onClick={handleBuyOnWhatsapp}
+                className="w-full py-5 bg-primary-container text-white font-headline font-bold uppercase tracking-widest text-sm hover:brightness-110 active:scale-[0.98] transition-all rounded-sm shadow-lg shadow-primary-container/20 flex items-center justify-center cursor-pointer"
+              >
                 <svg
                   className="w-5 h-5 mr-3 fill-current"
                   viewBox="0 0 24 24"
@@ -209,16 +328,60 @@ export default function ProductDetailPage() {
               </button>
             </div>
 
-            {/* Chips */}
-            <div className="flex flex-wrap gap-2">
-              {product.tags && product.tags.map((tag, idx) => (
-                <span key={idx} className="px-3 py-1 bg-surface-bright text-[0.65rem] font-bold uppercase tracking-wider text-on-surface rounded-sm">
-                  #{tag}
-                </span>
-              ))}
-              <span className="px-3 py-1 bg-surface-bright text-[0.65rem] font-bold uppercase tracking-wider text-on-surface rounded-sm">
-                {product.availability ? "Listo para Enviar" : "A Pedido Personalizado"}
-              </span>
+            {/* Delivery Methods */}
+            <div className="flex flex-col gap-4 mt-2">
+              <h4 className="font-headline text-[0.65rem] font-bold uppercase tracking-[0.2em] text-primary">
+                Métodos de entrega
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {/* Method 1: Despacho Programado */}
+                <div className="bg-surface-container-low hover:bg-surface-container-high transition-all duration-300 p-4 rounded-md border border-outline-variant/10 flex flex-col items-center text-center gap-2 relative group hover:-translate-y-0.5">
+                  <div className="absolute top-0 left-0 bg-primary text-white text-[8px] font-bold px-1.5 py-0.5 rounded-br-md rounded-tl-md">
+                    ✓
+                  </div>
+                  <svg className="w-8 h-8 text-primary mt-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125a1.125 1.125 0 0 0 1.125-1.125V9.75M3.75 12h14.25M3.75 15h14.25m-15-7.5h10.875c.621 0 1.125.504 1.125 1.125v6.75H1.875V8.625A1.125 1.125 0 0 1 3.75 7.5ZM13.5 7.5h5.625c.621 0 1.125.504 1.125 1.125v4.5H13.5V7.5Z" />
+                  </svg>
+                  <span className="text-[0.75rem] font-bold text-primary font-headline">
+                    Despacho Programado
+                  </span>
+                  <span className="text-[0.65rem] text-on-surface/60 font-body leading-tight">
+                    Envíos a todo el Perú. Precios disponibles por chat al Whatsapp.
+                  </span>
+                </div>
+
+                {/* Method 2: Retiro en Tienda */}
+                <div className="bg-surface-container-low hover:bg-surface-container-high transition-all duration-300 p-4 rounded-md border border-outline-variant/10 flex flex-col items-center text-center gap-2 relative group hover:-translate-y-0.5">
+                  <div className="absolute top-0 left-0 bg-primary text-white text-[8px] font-bold px-1.5 py-0.5 rounded-br-md rounded-tl-md">
+                    ✓
+                  </div>
+                  <svg className="w-8 h-8 text-primary mt-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125Z" />
+                  </svg>
+                  <span className="text-[0.75rem] font-bold text-primary font-headline">
+                    Retiro en Tienda
+                  </span>
+                  <span className="text-[0.65rem] text-on-surface/60 font-body leading-tight">
+                    Disponible para recojo en tienda en 24 horas desde la compra.
+                  </span>
+                </div>
+
+                {/* Method 3: Compra en Tienda */}
+                <div className="bg-surface-container-low hover:bg-surface-container-high transition-all duration-300 p-4 rounded-md border border-outline-variant/10 flex flex-col items-center text-center gap-2 relative group hover:-translate-y-0.5">
+                  <div className="absolute top-0 left-0 bg-primary text-white text-[8px] font-bold px-1.5 py-0.5 rounded-br-md rounded-tl-md">
+                    ✓
+                  </div>
+                  <svg className="w-8 h-8 text-primary mt-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 21v-7.5a.75.75 0 00-.75-.75h-1.5a.75.75 0 00-.75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349m-16.5 11.65V9.35m0 0a3.001 3.001 0 003.75-.615A2.993 2.993 0 009.75 9.75c.896 0 1.7-.393 2.25-1.016a2.993 2.993 0 002.25 1.016c.896 0 1.7-.393 2.25-1.015a3.001 3.001 0 003.75.614m-16.5 0a3.004 3.004 0 01-.621-4.72L4.318 3.44A1.5 1.5 0 015.378 3h13.243a1.5 1.5 0 011.06.44l1.19 1.189a3 3 0 01-.621 4.72M6.75 18h.008v.008H6.75V18Zm0-3h.008v.008H6.75V15Zm0-3h.008v.008H6.75V12Zm9 6h.008v.008H15.75V18Zm0-3h.008v.008H15.75V15Zm0-3h.008v.008H15.75V12Z" />
+                  </svg>
+                  <span className="text-[0.75rem] font-bold text-primary font-headline">
+                    Compra en Tienda
+                  </span>
+                  <span className="text-[0.65rem] text-on-surface/60 font-body leading-tight">
+                    Puedes comprar en Alejandro O. Deustua #689 - Huancayo.
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
         </div>

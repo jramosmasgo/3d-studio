@@ -18,6 +18,7 @@ import {
   type Tag,
   type Material,
 } from "@/lib/firebase/config-service";
+import { getOfertas, type Oferta } from "@/lib/firebase/ofertas-service";
 
 type SortOption = "featured" | "price-asc" | "price-desc" | "name-asc";
 
@@ -31,7 +32,43 @@ function CatalogoContent() {
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
   const [materiales, setMateriales] = useState<Material[]>([]);
+  const [activeOffer, setActiveOffer] = useState<Oferta | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Helper para obtener precio con descuento aplicado
+  const getDiscountedPrice = useCallback((product: Product, offer: Oferta | null) => {
+    if (!offer || !offer.isActive) {
+      return { discountedPrice: product.price, hasDiscount: false };
+    }
+
+    const todayStr = new Date().toISOString().split("T")[0];
+    if (offer.startDate && todayStr < offer.startDate) {
+      return { discountedPrice: product.price, hasDiscount: false };
+    }
+    if (offer.endDate && todayStr > offer.endDate) {
+      return { discountedPrice: product.price, hasDiscount: false };
+    }
+
+    let applies = false;
+    if (offer.targetType === "all") {
+      applies = true;
+    } else if (offer.targetType === "category" && offer.category) {
+      applies = product.categoryName?.toLowerCase() === offer.category.toLowerCase();
+    } else if (offer.targetType === "tags" && offer.tags && offer.tags.length > 0) {
+      applies = product.tags.some((t) => offer.tags.includes(t));
+    }
+
+    if (applies) {
+      if (offer.discountType === "percentage") {
+        const discount = product.price * (offer.discountValue / 100);
+        return { discountedPrice: Math.max(0, product.price - discount), hasDiscount: true };
+      } else if (offer.discountType === "money") {
+        return { discountedPrice: Math.max(0, product.price - offer.discountValue), hasDiscount: true };
+      }
+    }
+
+    return { discountedPrice: product.price, hasDiscount: false };
+  }, []);
 
   // ── Filtros ─────────────────────────────────────────────────────────────
   const [busqueda, setBusqueda] = useState("");
@@ -60,20 +97,27 @@ function CatalogoContent() {
   useEffect(() => {
     async function load() {
       try {
-        const [prods, cats, tgs, mats] = await Promise.all([
+        const [prods, cats, tgs, mats, offers] = await Promise.all([
           getProducts(),
           getCategorias(),
           getTags(),
           getMateriales(),
+          getOfertas(),
         ]);
         const activos = prods.filter((p) => p.isActive);
         setProducts(activos);
         setCategorias(cats.filter((c) => c.active !== false));
         setTags(tgs.filter((t) => t.active !== false));
         setMateriales(mats.filter((m) => m.active !== false));
+        
+        const active = offers.find((o) => o.isActive) || null;
+        setActiveOffer(active);
 
-        // Calcular precio máximo real
-        const max = activos.reduce((acc, p) => Math.max(acc, p.price), 0);
+        // Calcular precio máximo real basándose en el precio con descuento si aplica
+        const max = activos.reduce((acc, p) => {
+          const { discountedPrice } = getDiscountedPrice(p, active);
+          return Math.max(acc, discountedPrice);
+        }, 0);
         const roundedMax = Math.ceil(max / 50) * 50 || 500;
         setPrecioMaxDato(roundedMax);
         setPrecioMax(roundedMax);
@@ -84,7 +128,7 @@ function CatalogoContent() {
       }
     }
     load();
-  }, []);
+  }, [getDiscountedPrice]);
 
   // ── Toggle tag ──────────────────────────────────────────────────────────
   const toggleTag = useCallback((tag: string) => {
@@ -142,8 +186,11 @@ function CatalogoContent() {
       );
     }
 
-    // Precio
-    result = result.filter((p) => p.price <= precioMax);
+    // Precio (usar precio descontado para el filtro si aplica)
+    result = result.filter((p) => {
+      const { discountedPrice } = getDiscountedPrice(p, activeOffer);
+      return discountedPrice <= precioMax;
+    });
 
     // Solo disponibles
     if (soloDisponibles) {
@@ -153,10 +200,18 @@ function CatalogoContent() {
     // Ordenar
     switch (ordenar) {
       case "price-asc":
-        result.sort((a, b) => a.price - b.price);
+        result.sort((a, b) => {
+          const priceA = getDiscountedPrice(a, activeOffer).discountedPrice;
+          const priceB = getDiscountedPrice(b, activeOffer).discountedPrice;
+          return priceA - priceB;
+        });
         break;
       case "price-desc":
-        result.sort((a, b) => b.price - a.price);
+        result.sort((a, b) => {
+          const priceA = getDiscountedPrice(a, activeOffer).discountedPrice;
+          const priceB = getDiscountedPrice(b, activeOffer).discountedPrice;
+          return priceB - priceA;
+        });
         break;
       case "name-asc":
         result.sort((a, b) => a.name.localeCompare(b.name));
@@ -175,6 +230,8 @@ function CatalogoContent() {
     precioMax,
     soloDisponibles,
     ordenar,
+    activeOffer,
+    getDiscountedPrice,
   ]);
 
   const totalPaginas = Math.max(1, Math.ceil(productosFiltrados.length / POR_PAGINA));
@@ -196,7 +253,7 @@ function CatalogoContent() {
     <div className="bg-background min-h-screen text-on-surface">
       <TopNavBar />
 
-      <main className="pt-28 pb-20 px-4 sm:px-8 max-w-7xl mx-auto">
+      <main className="pt-40 pb-20 px-4 sm:px-8 max-w-7xl mx-auto">
         {/* ── Hero Header ─────────────────────────────────────────────── */}
         <div className="mb-10">
           <h1 className="text-5xl md:text-8xl font-bold tracking-tighter leading-none mb-4 font-headline uppercase">
@@ -616,9 +673,28 @@ function CatalogoContent() {
                           </div>
 
                           {/* Precio */}
-                          <span className="text-xl font-headline text-on-surface/60">
-                            S/. {product.price.toFixed(2)}
-                          </span>
+                          {(() => {
+                            const { discountedPrice, hasDiscount } = getDiscountedPrice(product, activeOffer);
+                            return hasDiscount ? (
+                              <div className="space-y-1">
+                                <div className="flex items-baseline gap-2">
+                                  <span className="text-xl font-headline font-bold text-primary">
+                                    S/. {discountedPrice.toFixed(2)}
+                                  </span>
+                                  <span className="text-sm font-headline text-on-surface/40 line-through">
+                                    S/. {product.price.toFixed(2)}
+                                  </span>
+                                </div>
+                                <div className="inline-block bg-primary/10 border border-primary/20 text-primary text-[9px] font-bold px-2 py-0.5 rounded-sm uppercase tracking-wider">
+                                  {activeOffer?.title}
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="text-xl font-headline text-on-surface/60">
+                                S/. {product.price.toFixed(2)}
+                              </span>
+                            );
+                          })()}
 
                           {/* Tags + material + acción */}
                           <div className="pt-4 flex items-center justify-between border-t border-on-surface/5">

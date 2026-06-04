@@ -5,6 +5,8 @@ import Image from "next/image";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { updateAdmin, type Admin } from "@/lib/firebase/admins-service";
 import { uploadImage, formatFileSize, type UploadProgressEvent } from "@/lib/cloudinary-upload";
+import { auth } from "@/lib/firebase/client";
+import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from "firebase/auth";
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
 
@@ -36,6 +38,14 @@ export default function PerfilPage() {
   const [isDragOver, setIsDragOver] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [uploadedFileInfo, setUploadedFileInfo] = useState<{ name: string; size: string } | null>(null);
+
+  // Estados para Cambiar Contraseña
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [changePasswordError, setChangePasswordError] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -143,6 +153,65 @@ export default function PerfilPage() {
 
   // La imagen mostrada en el avatar: priorizar preview local → campo imageProfile
   const displayImage = previewUrl || imageProfile || null;
+
+  // ── Cambiar Contraseña ───────────────────────────────────────────────────────
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setChangePasswordError(null);
+
+    if (!currentPassword) {
+      setChangePasswordError("Debes ingresar tu contraseña actual.");
+      return;
+    }
+    if (!newPassword) {
+      setChangePasswordError("Debes ingresar la nueva contraseña.");
+      return;
+    }
+    if (newPassword.length < 6) {
+      setChangePasswordError("La nueva contraseña debe tener al menos 6 caracteres.");
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      setChangePasswordError("Las nuevas contraseñas no coinciden.");
+      return;
+    }
+
+    setIsChangingPassword(true);
+    try {
+      const firebaseUser = auth.currentUser;
+      if (!firebaseUser || !firebaseUser.email) {
+        throw new Error("No hay un usuario autenticado activo.");
+      }
+
+      // Reautenticar al usuario
+      const credential = EmailAuthProvider.credential(firebaseUser.email, currentPassword);
+      await reauthenticateWithCredential(firebaseUser, credential);
+
+      // Actualizar contraseña
+      await updatePassword(firebaseUser, newPassword);
+
+      showToast("Contraseña actualizada correctamente.", "success");
+      setIsChangePasswordOpen(false);
+      
+      // Limpiar campos
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmNewPassword("");
+    } catch (error: any) {
+      console.error("Error al cambiar contraseña:", error);
+      let errMsg = "Ocurrió un error al cambiar la contraseña.";
+      if (error.code === "auth/wrong-password") {
+        errMsg = "La contraseña actual es incorrecta.";
+      } else if (error.code === "auth/invalid-credential") {
+        errMsg = "Credenciales incorrectas.";
+      } else if (error.message) {
+        errMsg = error.message;
+      }
+      setChangePasswordError(errMsg);
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
 
   // ── Guardar Perfil ─────────────────────────────────────────────────────────
 
@@ -271,6 +340,16 @@ export default function PerfilPage() {
                 )}
               </div>
 
+              {/* Input oculto */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                className="hidden"
+                onChange={handleFileChange}
+                disabled={uploadState === "uploading" || saving}
+              />
+
               {/* Botón flotante de cambio de foto */}
               <button
                 type="button"
@@ -317,159 +396,30 @@ export default function PerfilPage() {
           </div>
 
           {/* Tarjeta de Seguridad */}
-          <div className="bg-surface-container-low border border-outline-variant/10 rounded-2xl p-5 space-y-2 shadow-md">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-primary-container font-label flex items-center gap-2">
-              <span className="material-symbols-outlined text-sm">security</span>
-              Seguridad de la Cuenta
-            </h4>
-            <p className="text-xs text-on-surface/50 leading-relaxed font-body">
-              El correo electrónico está vinculado a Firebase Authentication y no puede modificarse desde aquí por motivos de seguridad.
-            </p>
+          <div className="bg-surface-container-low border border-outline-variant/10 rounded-2xl p-5 space-y-4 shadow-md">
+            <div className="space-y-2">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-primary-container font-label flex items-center gap-2">
+                <span className="material-symbols-outlined text-sm">security</span>
+                Seguridad de la Cuenta
+              </h4>
+              <p className="text-xs text-on-surface/50 leading-relaxed font-body">
+                El correo electrónico está vinculado a Firebase Authentication y no puede modificarse desde aquí por motivos de seguridad.
+              </p>
+            </div>
+            
+            <button
+              type="button"
+              onClick={() => setIsChangePasswordOpen(true)}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-surface-container-highest hover:bg-surface-container-highest/80 text-on-surface text-xs font-bold uppercase tracking-wider border border-outline-variant/10 transition-all active:scale-[0.98]"
+            >
+              <span className="material-symbols-outlined text-sm">lock_reset</span>
+              Cambiar Contraseña
+            </button>
           </div>
         </div>
 
         {/* ── Columna Derecha: Formulario ───────────────────────────────────── */}
         <div className="lg:col-span-2 space-y-6">
-
-          {/* ─ Uploader de Imagen ─────────────────────────────────────────── */}
-          <div className="bg-surface-container-low border border-outline-variant/10 rounded-2xl p-6 sm:p-8 space-y-5 shadow-xl">
-            <h3 className="text-base font-bold font-headline uppercase tracking-wider border-b border-outline-variant/5 pb-3">
-              Foto de Perfil
-            </h3>
-
-            {/* Input oculto */}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/jpeg,image/png,image/webp,image/gif"
-              className="hidden"
-              onChange={handleFileChange}
-              disabled={uploadState === "uploading" || saving}
-            />
-
-            {/* Zona de Drag & Drop */}
-            <div
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-              onClick={() =>
-                uploadState !== "uploading" && !saving && fileInputRef.current?.click()
-              }
-              className={`relative flex flex-col items-center justify-center gap-3 p-8 rounded-xl border-2 border-dashed transition-all duration-300 cursor-pointer select-none
-                ${isDragOver
-                  ? "border-primary-container bg-primary-container/5 scale-[1.01]"
-                  : uploadState === "uploading"
-                  ? "border-primary-container/30 bg-primary-container/5 cursor-not-allowed"
-                  : uploadState === "done"
-                  ? "border-green-500/30 bg-green-500/5"
-                  : uploadState === "error"
-                  ? "border-red-500/30 bg-red-500/5"
-                  : "border-outline-variant/20 hover:border-primary-container/40 hover:bg-surface-container-highest/30"
-                }`}
-            >
-              {uploadState === "uploading" ? (
-                <>
-                  <span className="material-symbols-outlined text-4xl text-primary-container animate-pulse">
-                    cloud_upload
-                  </span>
-                  <p className="text-sm font-bold text-primary-container">
-                    Subiendo imagen… {uploadProgress}%
-                  </p>
-                  {/* Barra de progreso */}
-                  <div className="w-full max-w-xs bg-surface-container-highest rounded-full h-1.5 overflow-hidden">
-                    <div
-                      className="h-full bg-primary-container rounded-full transition-all duration-300"
-                      style={{ width: `${uploadProgress}%` }}
-                    />
-                  </div>
-                  {uploadedFileInfo && (
-                    <p className="text-[11px] text-on-surface/40 font-mono">
-                      {uploadedFileInfo.name} — {uploadedFileInfo.size}
-                    </p>
-                  )}
-                </>
-              ) : uploadState === "done" ? (
-                <>
-                  <div className="flex items-center gap-3">
-                    <span className="material-symbols-outlined text-3xl text-green-400">
-                      check_circle
-                    </span>
-                    <div className="text-left">
-                      <p className="text-sm font-bold text-green-400">Imagen lista</p>
-                      {uploadedFileInfo && (
-                        <p className="text-[11px] text-on-surface/40 font-mono">
-                          {uploadedFileInfo.name} — {uploadedFileInfo.size}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleRemoveUploadedImage();
-                    }}
-                    className="text-[11px] text-on-surface/40 hover:text-red-400 font-bold uppercase tracking-wider transition-colors flex items-center gap-1"
-                  >
-                    <span className="material-symbols-outlined text-xs">close</span>
-                    Quitar imagen
-                  </button>
-                </>
-              ) : uploadState === "error" ? (
-                <>
-                  <span className="material-symbols-outlined text-4xl text-red-400">
-                    error
-                  </span>
-                  <p className="text-sm font-bold text-red-400">Error al subir</p>
-                  <p className="text-xs text-on-surface/40">
-                    Haz clic para intentar de nuevo
-                  </p>
-                </>
-              ) : (
-                <>
-                  <span className="material-symbols-outlined text-4xl text-on-surface/20 group-hover:text-primary-container transition-colors">
-                    add_photo_alternate
-                  </span>
-                  <div className="text-center space-y-1">
-                    <p className="text-sm font-bold text-on-surface/60">
-                      Arrastra tu foto aquí
-                    </p>
-                    <p className="text-xs text-on-surface/30">
-                      o{" "}
-                      <span className="text-primary-container underline underline-offset-2">
-                        haz clic para seleccionar
-                      </span>
-                    </p>
-                  </div>
-                  <p className="text-[10px] text-on-surface/20 font-mono uppercase tracking-widest">
-                    JPEG · PNG · WEBP · GIF · Máx. 10 MB
-                  </p>
-                </>
-              )}
-            </div>
-
-            {/* Preview de la imagen actual (si existe y no hay una nueva subida activa) */}
-            {displayImage && uploadState !== "uploading" && (
-              <div className="flex items-center gap-4 p-3 bg-surface-container-highest/50 rounded-xl border border-outline-variant/10">
-                <div className="relative w-12 h-12 rounded-lg overflow-hidden shrink-0 border border-outline-variant/10">
-                  <Image
-                    src={displayImage}
-                    alt="Preview"
-                    fill
-                    sizes="48px"
-                    className="object-cover"
-                    unoptimized
-                  />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-bold text-on-surface/80 truncate">
-                    {uploadState === "done" ? "Nueva imagen seleccionada" : "Imagen actual del perfil"}
-                  </p>
-                  <p className="text-[10px] text-on-surface/30 font-mono truncate">{displayImage}</p>
-                </div>
-              </div>
-            )}
-          </div>
 
           {/* ─ Datos Personales ───────────────────────────────────────────── */}
           <form
@@ -576,6 +526,131 @@ export default function PerfilPage() {
           </form>
         </div>
       </div>
+
+      {/* Modal de Cambiar Contraseña */}
+      {isChangePasswordOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-surface-container-low border border-outline-variant/15 w-full max-w-md rounded-2xl p-6 sm:p-8 space-y-6 shadow-2xl relative">
+            {/* Botón cerrar */}
+            <button
+              onClick={() => {
+                setIsChangePasswordOpen(false);
+                setCurrentPassword("");
+                setNewPassword("");
+                setConfirmNewPassword("");
+                setChangePasswordError(null);
+              }}
+              className="absolute top-4 right-4 text-on-surface/40 hover:text-on-surface transition-colors"
+              title="Cerrar"
+            >
+              <span className="material-symbols-outlined">close</span>
+            </button>
+
+            <div className="space-y-2">
+              <h3 className="text-xl font-bold font-headline uppercase tracking-tight flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary-container">lock_reset</span>
+                Cambiar Contraseña
+              </h3>
+              <p className="text-xs text-on-surface/40 font-body">
+                Por seguridad, debes ingresar tu contraseña actual para establecer una nueva.
+              </p>
+            </div>
+
+            {changePasswordError && (
+              <div className="p-3.5 bg-red-500/10 text-red-400 border border-red-500/20 rounded-xl text-xs flex items-center gap-2">
+                <span className="material-symbols-outlined text-sm">error</span>
+                <span>{changePasswordError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleChangePassword} className="space-y-4">
+              {/* Contraseña Actual */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-primary-container tracking-widest uppercase ml-1 font-label">
+                  Contraseña Actual
+                </label>
+                <input
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full bg-surface-container-highest border-none px-4 py-3 rounded-xl focus:ring-1 focus:ring-primary-container/50 text-on-surface placeholder:text-on-surface/10 outline-none text-sm font-body transition-all"
+                  required
+                  disabled={isChangingPassword}
+                />
+              </div>
+
+              {/* Nueva Contraseña */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-primary-container tracking-widest uppercase ml-1 font-label">
+                  Nueva Contraseña
+                </label>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full bg-surface-container-highest border-none px-4 py-3 rounded-xl focus:ring-1 focus:ring-primary-container/50 text-on-surface placeholder:text-on-surface/10 outline-none text-sm font-body transition-all"
+                  required
+                  disabled={isChangingPassword}
+                />
+              </div>
+
+              {/* Confirmar Nueva Contraseña */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-primary-container tracking-widest uppercase ml-1 font-label">
+                  Repetir Nueva Contraseña
+                </label>
+                <input
+                  type="password"
+                  value={confirmNewPassword}
+                  onChange={(e) => setConfirmNewPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full bg-surface-container-highest border-none px-4 py-3 rounded-xl focus:ring-1 focus:ring-primary-container/50 text-on-surface placeholder:text-on-surface/10 outline-none text-sm font-body transition-all"
+                  required
+                  disabled={isChangingPassword}
+                />
+              </div>
+
+              <div className="flex gap-3 pt-4 border-t border-outline-variant/10">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsChangePasswordOpen(false);
+                    setCurrentPassword("");
+                    setNewPassword("");
+                    setConfirmNewPassword("");
+                    setChangePasswordError(null);
+                  }}
+                  className="flex-1 px-4 py-3 rounded-xl bg-surface-container-highest hover:bg-surface-container-highest/80 text-on-surface text-xs font-bold uppercase tracking-wider transition-all"
+                  disabled={isChangingPassword}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-primary-container hover:brightness-110 text-white text-xs font-bold uppercase tracking-wider shadow-lg shadow-primary-container/20 transition-all disabled:opacity-60"
+                  disabled={isChangingPassword}
+                >
+                  {isChangingPassword ? (
+                    <>
+                      <span className="material-symbols-outlined text-sm animate-spin">
+                        progress_activity
+                      </span>
+                      Cambiando…
+                    </>
+                  ) : (
+                    <>
+                      <span className="material-symbols-outlined text-sm">lock</span>
+                      Confirmar
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -69,7 +69,7 @@ export default function NosotrosPage() {
   return (
     <>
       <TopNavBar />
-      <main className="pt-24 bg-surface text-on-surface">
+      <main className="pt-36 bg-surface text-on-surface">
         {/* Hero Section */}
         <section className="relative min-h-[80vh] flex items-center px-8 lg:px-24 py-20 overflow-hidden">
           <div className="absolute inset-0 z-0">

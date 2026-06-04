@@ -10,6 +10,9 @@ import {
   type Admin,
   type AdminType,
 } from "@/lib/firebase/admins-service";
+import { firebaseConfig } from "@/lib/firebase/client";
+import { initializeApp, deleteApp } from "firebase/app";
+import { getAuth, createUserWithEmailAndPassword } from "firebase/auth";
 
 // ── Componente Skeleton ──────────────────────────────────────────────────────
 
@@ -143,16 +146,40 @@ export default function AdminsPage() {
         );
         showToast("Administrador actualizado correctamente.", "success");
       } else {
+        // Crear usuario en Firebase Auth primero (usando una app secundaria para no cerrar la sesión del admin actual)
+        const tempAppName = `temp-app-${Date.now()}`;
+        const tempApp = initializeApp(firebaseConfig, tempAppName);
+        const tempAuth = getAuth(tempApp);
+        
+        try {
+          await createUserWithEmailAndPassword(tempAuth, email, "adminfirebase3d");
+        } catch (authErr: any) {
+          console.error("Error al crear usuario en Firebase Auth:", authErr);
+          if (authErr.code === "auth/email-already-in-use") {
+            // El usuario ya existe en Auth, procedemos a crear en Firestore
+          } else {
+            let errorMsg = "Error al crear la cuenta en Auth.";
+            if (authErr.code === "auth/invalid-email") {
+              errorMsg = "El correo electrónico no es válido.";
+            } else if (authErr.code === "auth/weak-password") {
+              errorMsg = "La contraseña es muy débil.";
+            }
+            throw new Error(errorMsg);
+          }
+        } finally {
+          await deleteApp(tempApp);
+        }
+
         const nuevo = await createAdmin(payload);
         setAdmins((prev) =>
           [...prev, nuevo].sort((a, b) => a.name.localeCompare(b.name))
         );
-        showToast("Administrador creado correctamente.", "success");
+        showToast("Administrador creado correctamente con contraseña: adminfirebase3d", "success");
       }
       setIsModalOpen(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error guardando administrador:", err);
-      showToast("Error al guardar. Intenta de nuevo.", "error");
+      showToast(err.message || "Error al guardar. Intenta de nuevo.", "error");
     } finally {
       setSaving(false);
     }
@@ -418,12 +445,15 @@ export default function AdminsPage() {
                 {/* Acciones */}
                 <div className="px-6 py-4 bg-surface-container-highest/20 border-t border-outline-variant/5 flex items-center gap-2">
                   <button
-                    onClick={() => handleToggleActive(admin)}
+                    onClick={() => admin.email !== "admin@gmail.com" && handleToggleActive(admin)}
+                    disabled={admin.email === "admin@gmail.com"}
                     className={`flex-1 flex items-center justify-center gap-1.5 text-[10px] font-bold uppercase tracking-wider py-2.5 rounded-lg border transition-all
                       ${
-                        admin.active
-                          ? "text-red-400 border-red-500/10 hover:bg-red-500/10"
-                          : "text-green-400 border-green-500/10 hover:bg-green-500/10"
+                        admin.email === "admin@gmail.com"
+                          ? "opacity-30 cursor-not-allowed border-outline-variant/10 text-on-surface/40"
+                          : admin.active
+                          ? "text-red-400 border-red-500/10 hover:bg-red-500/10 cursor-pointer"
+                          : "text-green-400 border-green-500/10 hover:bg-green-500/10 cursor-pointer"
                       }`}
                   >
                     <span className="material-symbols-outlined text-sm">
@@ -433,17 +463,23 @@ export default function AdminsPage() {
                   </button>
 
                   <button
-                    onClick={() => handleOpenEdit(admin)}
-                    className="flex-1 flex items-center justify-center gap-1.5 text-[10px] font-bold uppercase tracking-wider py-2.5 bg-surface-container-highest text-on-surface/80 hover:text-on-surface border border-outline-variant/10 rounded-lg hover:bg-surface-container-highest/80 transition-colors"
+                    onClick={() => admin.email !== "admin@gmail.com" && handleOpenEdit(admin)}
+                    disabled={admin.email === "admin@gmail.com"}
+                    className={`flex-1 flex items-center justify-center gap-1.5 text-[10px] font-bold uppercase tracking-wider py-2.5 border rounded-lg transition-colors
+                      ${
+                        admin.email === "admin@gmail.com"
+                          ? "opacity-30 cursor-not-allowed border-outline-variant/10 text-on-surface/40 bg-surface-container-highest/20"
+                          : "bg-surface-container-highest text-on-surface/80 hover:text-on-surface border-outline-variant/10 hover:bg-surface-container-highest/80 cursor-pointer"
+                      }`}
                   >
                     <span className="material-symbols-outlined text-sm">edit</span>
                     Editar
                   </button>
 
                   <button
-                    onClick={() => handleDelete(admin)}
-                    disabled={isBeingDeleted}
-                    className="w-9 h-9 flex items-center justify-center text-red-400 hover:text-red-300 bg-red-500/5 hover:bg-red-500/10 border border-red-500/10 rounded-lg transition-all disabled:opacity-40"
+                    onClick={() => admin.email !== "admin@gmail.com" && handleDelete(admin)}
+                    disabled={isBeingDeleted || admin.email === "admin@gmail.com"}
+                    className="w-9 h-9 flex items-center justify-center text-red-400 hover:text-red-300 bg-red-500/5 hover:bg-red-500/10 border border-red-500/10 rounded-lg transition-all disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
                     title="Eliminar"
                   >
                     {isBeingDeleted ? (

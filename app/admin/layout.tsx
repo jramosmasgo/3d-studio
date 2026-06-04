@@ -12,7 +12,7 @@ export default function AdminLayout({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, loading, signOut } = useAuth();
+  const { user, adminProfile, loading, signOut } = useAuth();
   const isLoginPage = pathname === "/admin/login";
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
@@ -64,7 +64,9 @@ export default function AdminLayout({
   }
 
   // Iniciales del usuario para el avatar
-  const initials = user.displayName
+  const initials = adminProfile
+    ? `${adminProfile.name.slice(0, 1)}${adminProfile.surname.slice(0, 1)}`.toUpperCase()
+    : user.displayName
     ? user.displayName.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()
     : (user.email ?? "AD").slice(0, 2).toUpperCase();
 
@@ -180,29 +182,29 @@ export default function AdminLayout({
             {menuItems.find((item) => item.href === pathname)?.label || "Administración"}
           </h2>
           <div className="flex items-center gap-6">
-            <div className="w-10 h-10 rounded-full bg-surface-container-highest border border-outline-variant/10 flex items-center justify-center cursor-pointer hover:bg-surface-container-highest/80 transition-colors">
-              <span className="material-symbols-outlined text-on-surface/40">notifications</span>
-            </div>
             <div className="relative" ref={userMenuRef}>
               <button
                 onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
                 className="flex items-center gap-3 bg-surface-container-highest/50 hover:bg-surface-container-highest px-4 py-1.5 rounded-full border border-outline-variant/10 transition-colors"
               >
-                {user.photoURL ? (
-                  <Image
-                    src={user.photoURL}
-                    alt="Avatar"
-                    width={28}
-                    height={28}
-                    className="rounded-full"
-                  />
+                {adminProfile?.imageProfile || user.photoURL ? (
+                  <div className="relative w-7 h-7 rounded-full overflow-hidden border border-outline-variant/10">
+                    <Image
+                      src={adminProfile?.imageProfile || user.photoURL || ""}
+                      alt="Avatar"
+                      fill
+                      sizes="28px"
+                      className="object-cover"
+                      unoptimized
+                    />
+                  </div>
                 ) : (
                   <div className="w-7 h-7 rounded-full bg-primary-container flex items-center justify-center text-[10px] font-bold">
                     {initials}
                   </div>
                 )}
                 <span className="text-xs font-bold uppercase tracking-tighter max-w-[120px] truncate text-left">
-                  {user.displayName ?? user.email ?? "Administrador"}
+                  {adminProfile ? `${adminProfile.name} ${adminProfile.surname}` : (user.displayName ?? user.email ?? "Administrador")}
                 </span>
                 <span className="material-symbols-outlined text-sm text-on-surface/40">
                   {isUserMenuOpen ? "expand_less" : "expand_more"}

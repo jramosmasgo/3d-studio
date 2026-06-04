@@ -164,7 +164,7 @@ export default function OfertasPage() {
       tags: targetType === "tags" ? selectedTags : [],
       startDate,
       endDate: endDate || "",
-      isActive: false, // siempre se crea/actualiza con false al guardar
+      isActive: editingOferta ? editingOferta.isActive : false, // conserva el estado de activación al editar
       ...(targetType === "category" ? { category: selectedCategory } : {}),
     };
 
