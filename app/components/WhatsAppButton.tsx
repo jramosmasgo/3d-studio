@@ -3,8 +3,8 @@
 import React from "react";
 
 export default function WhatsAppButton() {
-  const phoneNumber = "51921312015"; // Reemplaza con el número real si es diferente
-  const message = "Hola Studio 3D! Me gustaría obtener más información sobre sus servicios.";
+  const phoneNumber = "51925219464"; // Reemplaza con el número real si es diferente
+  const message = "Hola Studio 3D! Quiero comunicarme con un asesor para consultar.";
   const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodeURIComponent(message)}`;
 
   return (

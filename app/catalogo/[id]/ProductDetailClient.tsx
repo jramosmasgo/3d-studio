@@ -61,7 +61,7 @@ export default function ProductDetailClient({ id }: { id: string }) {
 
 Enlace al producto: ${currentUrl}`;
 
-    const whatsappUrl = `https://wa.me/51978911898?text=${encodeURIComponent(text)}`;
+    const whatsappUrl = `https://wa.me/51925219464?text=${encodeURIComponent(text)}`;
     window.open(whatsappUrl, "_blank");
   };
 
