@@ -10,6 +10,8 @@ import {
   serverTimestamp,
   getDoc,
   increment,
+  where,
+  limit
 } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 
@@ -107,4 +109,28 @@ export async function incrementProductViews(id: string): Promise<void> {
   await updateDoc(doc(db, PRODUCTS_COL, id), {
     views: increment(1),
   });
+}
+
+export async function getRelatedProducts(currentProductId: string, categoryId: string, tags: string[] = []): Promise<Product[]> {
+  const q = query(
+    collection(db, PRODUCTS_COL),
+    where("categoryId", "==", categoryId),
+    limit(20) // Limit to 20 to find some matches
+  );
+  
+  const snap = await getDocs(q);
+  const products = snap.docs
+    .map((d) => ({ id: d.id, ...d.data() } as Product))
+    .filter(p => p.id !== currentProductId && p.isActive);
+
+  // Ordenar por número de tags coincidentes (mayor coincidencia primero)
+  products.sort((a, b) => {
+    const aTags = a.tags || [];
+    const bTags = b.tags || [];
+    const aMatches = aTags.filter(t => tags.includes(t)).length;
+    const bMatches = bTags.filter(t => tags.includes(t)).length;
+    return bMatches - aMatches;
+  });
+
+  return products.slice(0, 3);
 }

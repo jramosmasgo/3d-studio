@@ -5,7 +5,7 @@ import TopNavBar from "../../components/TopNavBar";
 import Footer from "../../components/Footer";
 import Image from "next/image";
 import Link from "next/link";
-import { getProduct, type Product, incrementProductViews } from "@/lib/firebase/products-service";
+import { getProduct, type Product, incrementProductViews, getRelatedProducts } from "@/lib/firebase/products-service";
 import { getOfertas, type Oferta } from "@/lib/firebase/ofertas-service";
 
 function getDiscountedPrice(product: Product, offer: Oferta | null): { discountedPrice: number; hasDiscount: boolean } {
@@ -47,6 +47,7 @@ export default function ProductDetailClient({ id }: { id: string }) {
   const [activeOffer, setActiveOffer] = useState<Oferta | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
 
   const handleBuyOnWhatsapp = () => {
     if (!product) return;
@@ -81,6 +82,12 @@ Enlace al producto: ${currentUrl}`;
 
         if (prod) {
           setProduct(prod);
+          try {
+            const rels = await getRelatedProducts(id, prod.categoryId, prod.tags);
+            setRelatedProducts(rels);
+          } catch (err) {
+            console.error("Error fetching related products", err);
+          }
         }
 
         const active = offers.find((o) => o.isActive) || null;
@@ -403,54 +410,45 @@ Enlace al producto: ${currentUrl}`;
             </Link>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {/* Related 1 */}
-            <div className="group cursor-pointer">
-              <div className="bg-surface-container-low aspect-[3/4] overflow-hidden mb-6 relative rounded-sm">
-                <Image
-                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuBMX8Q8k7qBazs_nIk3WU28lQHu3tjW1CO1o5yzE5_uIl8dWtJO7Bl5uBBVg1hxuJZ9cQzf4v2tDMEg2HcL6bGuKYrPGaRAIsq3wxIMiz8SCeazOAJ9jx-XltpauBlPM53IniN_qDxllklvyqowBhdcoaFQ9K3ZBsc0FdShosdjo1e9HsbDQHu2hskux2IBroJWffMmqZ-3ki-HO30aXyqy_HpWjWov7lWT73gBjpJIGG_nciZRlbrlNH1QZGXiLmGZ4rekSrB6bRyc"
-                  alt="Relic Hunter"
-                  fill
-                  className="object-cover transition-transform duration-500 group-hover:scale-105"
-                  unoptimized
-                />
-              </div>
-              <h4 className="font-headline text-lg font-bold group-hover:text-primary transition-colors">
-                Relic Hunter VII
-              </h4>
-              <p className="text-on-secondary-container text-sm mt-1">S/. 89.00</p>
-            </div>
-            {/* Related 2 */}
-            <div className="group cursor-pointer">
-              <div className="bg-surface-container-low aspect-[3/4] overflow-hidden mb-6 relative rounded-sm">
-                <Image
-                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuBuHn3ppCGEt2qo2cMIK1_CDIQQhy502dmjxJmkBALSOw6SzNL_s36-3JTi-CNFmhtPdCEkxccF0GEdOPUyz8QPFb6cQu0r-a1S77ueAJUayX_fY5VdNIXEhg2ARMv-kh2yfHvjxyPNg_BBpL24wTujMpJ5Z_GTaSddzwmP06gFbvknFH2qbk-zkY3AtmpGZm26wqmpaR6BIahDXvdTkoz1Vj7Oe297RhDzmxqeXfQ8OtxIu2zumSIkTG4ghyvKx90j2R2_gOselXRC"
-                  alt="Exo-Frame"
-                  fill
-                  className="object-cover transition-transform duration-500 group-hover:scale-105"
-                  unoptimized
-                />
-              </div>
-              <h4 className="font-headline text-lg font-bold group-hover:text-primary transition-colors">
-                Exo-Frame Modular
-              </h4>
-              <p className="text-on-secondary-container text-sm mt-1">S/. 145.00</p>
-            </div>
-            {/* Related 3 */}
-            <div className="group cursor-pointer">
-              <div className="bg-surface-container-low aspect-[3/4] overflow-hidden mb-6 relative rounded-sm">
-                <Image
-                  src="https://lh3.googleusercontent.com/aida-public/AB6AXuDb9u6CCrc0rxSvWHDl8TiYaZ2ZBNT4TU2Zh6HsyXI9zy6xagEmL2fDJsBZ0gnb3ePiBW5-3KAk1TfbI18yWw6kEWedoN7YfyPgewNRo2uMlnqkRgalWRNXMVK6ZkIg5PTd2kw4arpEd_wSSFf-UZil5DaqAah-m3plBY11-LbHKWS2rzr37-uenuy0_z3DYRVG-ou7tXavPk1TExZy9YRvV7jDbR1ak2K1VAV6RowvhRnSniEmxhRxMoQmHtoSHfEpAjIko4Q45qu6"
-                  alt="Neural Core"
-                  fill
-                  className="object-cover transition-transform duration-500 group-hover:scale-105"
-                  unoptimized
-                />
-              </div>
-              <h4 className="font-headline text-lg font-bold group-hover:text-primary transition-colors">
-                Neural Core Apex
-              </h4>
-              <p className="text-on-secondary-container text-sm mt-1">S/. 210.00</p>
-            </div>
+            {relatedProducts.length > 0 ? (
+              relatedProducts.map((relProduct) => {
+                const { discountedPrice, hasDiscount } = getDiscountedPrice(relProduct, activeOffer);
+                return (
+                  <Link key={relProduct.id} href={`/catalogo/${relProduct.id}`} className="group cursor-pointer block">
+                    <div className="bg-surface-container-low aspect-[3/4] overflow-hidden mb-6 relative rounded-sm">
+                      <Image
+                        src={relProduct.images?.[0]?.url || "https://lh3.googleusercontent.com/aida-public/AB6AXuBMX8Q8k7qBazs_nIk3WU28lQHu3tjW1CO1o5yzE5_uIl8dWtJO7Bl5uBBVg1hxuJZ9cQzf4v2tDMEg2HcL6bGuKYrPGaRAIsq3wxIMiz8SCeazOAJ9jx-XltpauBlPM53IniN_qDxllklvyqowBhdcoaFQ9K3ZBsc0FdShosdjo1e9HsbDQHu2hskux2IBroJWffMmqZ-3ki-HO30aXyqy_HpWjWov7lWT73gBjpJIGG_nciZRlbrlNH1QZGXiLmGZ4rekSrB6bRyc"}
+                        alt={relProduct.name}
+                        fill
+                        className="object-cover transition-transform duration-500 group-hover:scale-105"
+                        unoptimized
+                      />
+                    </div>
+                    <h4 className="font-headline text-lg font-bold group-hover:text-primary transition-colors">
+                      {relProduct.name}
+                    </h4>
+                    <div className="flex items-center gap-2 mt-1">
+                      {hasDiscount ? (
+                        <>
+                          <span className="text-on-secondary-container text-sm font-bold">
+                            S/. {discountedPrice.toFixed(2)}
+                          </span>
+                          <span className="text-on-surface-variant text-xs line-through opacity-50">
+                            S/. {relProduct.price.toFixed(2)}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-on-secondary-container text-sm">
+                          S/. {relProduct.price.toFixed(2)}
+                        </span>
+                      )}
+                    </div>
+                  </Link>
+                );
+              })
+            ) : (
+              <p className="text-on-surface-variant text-sm col-span-3">No hay piezas relacionadas por el momento.</p>
+            )}
           </div>
         </section>
       </main>
